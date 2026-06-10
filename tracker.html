@@ -154,6 +154,42 @@
         .summary-lbl { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
         .summary-val { font-size: 15px; font-weight: bold; color: var(--text); }
 
+        /* Activity picker (multi-select) */
+        .activity-btn {
+            width: 100%; padding: 16px 14px; margin-bottom: 10px;
+            border-radius: 16px; border: 2px solid var(--border);
+            background: var(--bg); color: var(--text);
+            font-size: 15px; font-weight: 600; text-align: left;
+            cursor: pointer; display: flex; align-items: center; gap: 14px;
+            transition: border-color 0.2s, background 0.2s, transform 0.1s;
+            font-family: inherit;
+        }
+        .activity-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+        .activity-btn.sel { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .check-circle {
+            width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border);
+            flex-shrink: 0; margin-left: auto; display: flex; align-items: center;
+            justify-content: center; transition: 0.2s; font-size: 13px;
+        }
+        .activity-btn.sel .check-circle { background: var(--accent); border-color: var(--accent); color: white; }
+        /* Difficulty sub-panel */
+        .diff-panel { margin-top: 12px; padding: 16px; background: var(--surface); border-radius: 14px; border-left: 4px solid var(--accent); animation: fadeIn 0.25s ease; }
+        .diff-btn {
+            flex: 1; padding: 14px 6px; border-radius: 12px; border: 2px solid var(--border);
+            background: var(--bg); color: var(--text); font-size: 13px; font-weight: 700;
+            cursor: pointer; text-align: center; transition: 0.2s; font-family: inherit;
+        }
+        .diff-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+        .diff-btn.sel { border-color: var(--accent); background: var(--accent); color: white; }
+        /* Session timeline */
+        .tl-item { display: flex; gap: 14px; align-items: flex-start; }
+        .tl-left { display: flex; flex-direction: column; align-items: center; width: 44px; flex-shrink: 0; }
+        .tl-dot { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .tl-line { width: 2px; flex: 1; min-height: 18px; background: var(--border); }
+        .tl-body { padding-bottom: 20px; flex: 1; }
+        .tl-task { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+        .tl-dur { font-size: 12px; color: var(--text-muted); }
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulseBadge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
         @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
@@ -348,141 +384,218 @@
             const DailyCheckIn = () => {
                 const [screen, setScreen] = useState(1);
                 const [picks, setPicks] = useState({});
+                const [activities, setActivities] = useState([]);
+                const [exposureDiff, setExposureDiff] = useState(null);
                 const [battPct, setBattPct] = useState(0);
                 const [battColor, setBattColor] = useState('#10b981');
                 const [done, setDone] = useState(false);
                 const [saving, setSaving] = useState(false);
                 const [history, setHistory] = useState([]);
+                const [sessionPlan, setSessionPlan] = useState([]);
 
-                const summaryLabels = {
-                    full: "Full battery", half: "Half battery", low: "Low battery",
-                    voice: "I want to talk", listen: "Listening only", silence: "Silence please",
-                    home: "Stay home", easy: "Easy outing", challenge: "Challenge mode", decide: "You decide"
-                };
-                const summaryIcons = {
-                    full:"🟢", half:"🟡", low:"🔴",
-                    voice:"🗣️", listen:"🎧", silence:"🚫",
-                    home:"🏠", easy:"🚶", challenge:"🚀", decide:"🎲"
-                };
-                const screenLabels = { 1: "Energy", 2: "Communication", 3: "Plan" };
+                const TOTAL = 4;
+
+                const energyLabels = { full: "Batería completa", half: "Media batería", low: "Batería baja" };
+                const commLabels   = { voice: "Quiero hablar", listen: "Solo escuchar", silence: "Silencio" };
+                const energyIcons  = { full: "🟢", half: "🟡", low: "🔴" };
+                const commIcons    = { voice: "🗣️", listen: "🎧", silence: "🚫" };
 
                 const loadHistory = async () => {
-                    const { data } = await supabase
-                        .from('daily_checkins')
-                        .select('*')
-                        .eq('user_id', user.id)
-                        .order('created_at', { ascending: false })
-                        .limit(5);
+                    const { data } = await supabase.from('daily_checkins').select('*')
+                        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(5);
                     if (data) setHistory(data);
                 };
-
                 useEffect(() => { loadHistory(); }, []);
 
                 const screenTitles = {
-                    1: "How much energy do you have today?",
-                    2: "How do you want to communicate right now?",
-                    3: "What are we doing with today's plan?"
+                    1: "¿Cuánta energía tienes hoy?",
+                    2: "¿Cómo quieres comunicarte ahora?",
+                    3: "¿Qué quieres trabajar hoy?",
+                    4: "Tu plan de sesión"
                 };
                 const screenSubs = {
-                    1: "Tap the one that feels right",
-                    2: "There are no wrong answers",
-                    3: "Pick what feels best"
+                    1: "Toca el que mejor te describe",
+                    2: "No hay respuestas incorrectas",
+                    3: "Puedes elegir más de una actividad",
+                    4: "Revisa tu plan y guárdalo cuando estés listo"
                 };
 
-                const options = {
-                    1: [
-                        { val: "full", icon: "🟢", label: "Full battery", sub: "I'm ready for anything today", batt: 100, color: '#10b981' },
-                        { val: "half", icon: "🟡", label: "Half battery", sub: "I'm okay, but I want to take it easy", batt: 50, color: '#f59e0b' },
-                        { val: "low",  icon: "🔴", label: "Low battery",  sub: "I have no energy, I need to rest", batt: 15, color: '#ef4444' },
-                    ],
-                    2: [
-                        { val: "voice",   icon: "🗣️", label: "I want to talk",       sub: "Talk to me and I'll talk back" },
-                        { val: "listen",  icon: "🎧", label: "Listening only",        sub: "You can talk to me, I won't use my voice" },
-                        { val: "silence", icon: "🚫", label: "Silence please",        sub: "Please don't talk to me right now" },
-                    ],
-                    3: [
-                        { val: "home",      icon: "🏠", label: "Stay home",           sub: "I don't want to go out today" },
-                        { val: "easy",      icon: "🚶", label: "Easy outing",          sub: "A place I already know, no surprises" },
-                        { val: "challenge", icon: "🚀", label: "Challenge mode",       sub: "I have energy to try something new" },
-                        { val: "decide",    icon: "🎲", label: "You decide for me",    sub: "I don't know — please choose for me" },
-                    ]
+                const energyOpts = [
+                    { val: "full", icon: "🟢", label: "Batería completa", sub: "Estoy listo para cualquier cosa", batt: 100, color: '#10b981' },
+                    { val: "half", icon: "🟡", label: "Media batería",     sub: "Estoy bien, pero quiero ir despacio", batt: 50, color: '#f59e0b' },
+                    { val: "low",  icon: "🔴", label: "Batería baja",      sub: "No tengo energía, necesito descansar", batt: 15, color: '#ef4444' },
+                ];
+                const commOpts = [
+                    { val: "voice",   icon: "🗣️", label: "Quiero hablar",      sub: "Háblame y yo respondo" },
+                    { val: "listen",  icon: "🎧", label: "Solo escuchar",        sub: "Puedes hablarme, no usaré mi voz" },
+                    { val: "silence", icon: "🚫", label: "Silencio por favor",   sub: "Por favor no me hables ahora" },
+                ];
+                const actOpts = [
+                    { val: "exposure",  icon: "🎯", label: "Exposiciones",              sub: "Practicar enfrentar algo difícil" },
+                    { val: "breathing", icon: "🧘", label: "Respiración / Relajación",  sub: "Ejercicio de respiración 4-7-8" },
+                    { val: "talk",      icon: "💬", label: "Hablar de cómo me siento",  sub: "Conversar con Jefferson" },
+                    { val: "review",    icon: "📋", label: "Revisar mis evitaciones",   sub: "Ver qué evité esta semana" },
+                    { val: "decide",    icon: "🎲", label: "Jefferson decide todo",      sub: "Que el terapeuta elija por mí" },
+                ];
+                const diffOpts = [
+                    { val: "easy",   icon: "🌱", label: "Fácil",      sub: "Algo que ya he practicado" },
+                    { val: "medium", icon: "🌿", label: "Moderado",    sub: "Un poco fuera de mi zona" },
+                    { val: "hard",   icon: "🔥", label: "Desafiante",  sub: "Empujar mis límites" },
+                ];
+
+                const toggleAct = (val) => {
+                    if (val === 'decide') {
+                        setActivities(prev => prev.includes('decide') ? [] : ['decide']);
+                        setExposureDiff(null);
+                    } else {
+                        setActivities(prev => {
+                            const without = prev.filter(a => a !== 'decide');
+                            if (without.includes(val)) {
+                                if (val === 'exposure') setExposureDiff(null);
+                                return without.filter(a => a !== val);
+                            }
+                            return [...without, val];
+                        });
+                    }
                 };
 
-                const select = (opt) => {
-                    setPicks(prev => ({ ...prev, [screen]: opt.val }));
-                    if (screen === 1) { setBattPct(opt.batt); setBattColor(opt.color); }
+                const buildPlan = (energy, acts, diff) => {
+                    const plan = [];
+                    plan.push({ icon: "👋", task: "Inicio y check-in", duration: 5, bg: "rgba(99,102,241,0.15)", color: "#6366f1" });
+                    if (acts.includes('decide')) {
+                        plan.push({ icon: "🎲", task: "Jefferson estructura la sesión", duration: 50, bg: "rgba(99,102,241,0.15)", color: "#6366f1" });
+                    } else {
+                        if (acts.includes('breathing') || energy === 'low') {
+                            plan.push({ icon: "🧘", task: "Respiración 4-7-8", duration: energy === 'low' ? 10 : 7, bg: "rgba(6,182,212,0.15)", color: "#06b6d4" });
+                        }
+                        if (acts.includes('review')) {
+                            plan.push({ icon: "📋", task: "Revisar evitaciones de la semana", duration: 10, bg: "rgba(245,158,11,0.15)", color: "#f59e0b" });
+                        }
+                        if (acts.includes('talk')) {
+                            plan.push({ icon: "💬", task: "Espacio para hablar", duration: 15, bg: "rgba(168,85,247,0.15)", color: "#a855f7" });
+                        }
+                        if (acts.includes('exposure')) {
+                            if (energy === 'low') {
+                                plan.push({ icon: "🎯", task: "Exposición imaginaria (sin presión)", duration: 10, bg: "rgba(16,185,129,0.15)", color: "#10b981" });
+                            } else {
+                                const label = diff === 'easy' ? 'Exposición fácil (algo conocido)'
+                                            : diff === 'hard' ? 'Exposición desafiante'
+                                            : 'Exposición moderada';
+                                const dur = diff === 'easy' ? 10 : diff === 'hard' ? 25 : 15;
+                                plan.push({ icon: "🎯", task: label, duration: dur, bg: "rgba(16,185,129,0.15)", color: "#10b981" });
+                                plan.push({ icon: "🌬️", task: "Respiración de cierre", duration: 5, bg: "rgba(6,182,212,0.15)", color: "#06b6d4" });
+                            }
+                        }
+                    }
+                    plan.push({ icon: "✅", task: "Reflexión y cierre", duration: 5, bg: "rgba(99,102,241,0.15)", color: "#6366f1" });
+                    return plan;
+                };
+
+                const canNext = () => {
+                    if (screen === 1) return !!picks[1];
+                    if (screen === 2) return !!picks[2];
+                    if (screen === 3) {
+                        if (activities.length === 0) return false;
+                        if (activities.includes('exposure') && !exposureDiff) return false;
+                        return true;
+                    }
+                    return true;
                 };
 
                 const next = async () => {
-                    if (screen < 3) {
-                        setScreen(screen + 1);
-                    } else {
+                    if (screen === 3) {
+                        setSessionPlan(buildPlan(picks[1], activities, exposureDiff));
+                        setScreen(4);
+                    } else if (screen === 4) {
                         setSaving(true);
                         const { error } = await supabase.from('daily_checkins').insert([{
                             user_id: user.id,
                             energy: picks[1],
                             communication: picks[2],
-                            plan: picks[3]
+                            plan: JSON.stringify({ activities, exposureDiff, schedule: sessionPlan })
                         }]);
                         setSaving(false);
-                        if (error) {
-                            alert("Error saving: " + error.message);
-                        } else {
-                            setDone(true);
-                            loadHistory();
-                        }
+                        if (error) alert("Error al guardar: " + error.message);
+                        else { setDone(true); loadHistory(); }
+                    } else {
+                        setScreen(s => s + 1);
                     }
                 };
 
                 const reset = () => {
-                    setScreen(1); setPicks({}); setBattPct(0); setBattColor('#10b981'); setDone(false);
+                    setScreen(1); setPicks({}); setActivities([]); setExposureDiff(null);
+                    setBattPct(0); setBattColor('#10b981'); setDone(false); setSessionPlan([]);
                 };
 
-                const formatDate = (iso) => {
-                    const d = new Date(iso);
-                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                };
+                const fmtDate = (iso) => new Date(iso).toLocaleDateString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const parsePlan = (h) => { try { return JSON.parse(h.plan); } catch { return null; } };
+                const totalMin = (plan) => plan.reduce((s, i) => s + i.duration, 0);
+
+                const Timeline = ({ plan }) => (
+                    <div style={{marginTop: "10px"}}>
+                        {plan.map((item, i) => (
+                            <div key={i} className="tl-item">
+                                <div className="tl-left">
+                                    <div className="tl-dot" style={{background: item.bg}}>{item.icon}</div>
+                                    {i < plan.length - 1 && <div className="tl-line"></div>}
+                                </div>
+                                <div className="tl-body">
+                                    <div className="tl-task">{item.task}</div>
+                                    <div className="tl-dur">~{item.duration} min</div>
+                                </div>
+                            </div>
+                        ))}
+                        <div style={{marginTop: "10px", padding: "12px 16px", background: "var(--bg)", borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--border)"}}>
+                            <span style={{fontSize: "13px", color: "var(--text-muted)", fontWeight: 600}}>Tiempo total estimado</span>
+                            <span style={{fontWeight: "bold", color: "var(--accent)", fontSize: "16px"}}>~{totalMin(plan)} min</span>
+                        </div>
+                    </div>
+                );
+
+                const HistoryList = () => (
+                    history.length > 0 ? (
+                        <div className="card">
+                            <h3 style={{marginTop: 0, color: "var(--accent)"}}>Check-ins recientes</h3>
+                            {history.map(h => {
+                                const p = parsePlan(h);
+                                return (
+                                    <div key={h.id} style={{padding: "12px", background: "var(--bg)", borderRadius: "12px", marginBottom: "10px"}}>
+                                        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px"}}>
+                                            <span style={{fontSize: "12px", color: "var(--text-muted)"}}>{fmtDate(h.created_at)}</span>
+                                            <button onClick={async () => { if(confirm("¿Eliminar este check-in?")) { await supabase.from('daily_checkins').delete().eq('id', h.id); loadHistory(); }}} style={{background:"transparent", border:"none", color:"var(--danger)", cursor:"pointer"}}>🗑️</button>
+                                        </div>
+                                        <div style={{display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center"}}>
+                                            {h.energy && <span style={{fontSize: "13px"}}>{energyIcons[h.energy]} {energyLabels[h.energy]}</span>}
+                                            {h.communication && <><span style={{color: "var(--border)"}}>·</span><span style={{fontSize: "13px"}}>{commIcons[h.communication]} {commLabels[h.communication]}</span></>}
+                                            {p && p.activities && <><span style={{color: "var(--border)"}}>·</span><span style={{fontSize: "13px"}}>📅 {p.activities.length} actividad{p.activities.length !== 1 ? 'es' : ''}</span></>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : null
+                );
 
                 if (done) {
                     return (
                         <div>
                             <div className="card">
-                                <h2 style={{color: "var(--success)", marginTop: 0}}>Saved! ✅</h2>
-                                <p style={{color: "var(--text-muted)", fontSize: "14px", marginBottom: "20px"}}>Today's check-in has been saved.</p>
-                                {[1,2,3].map(s => picks[s] && (
-                                    <div key={s} className="summary-row">
-                                        <span className="summary-icon">{summaryIcons[picks[s]]}</span>
-                                        <div>
-                                            <div className="summary-lbl">{screenLabels[s]}</div>
-                                            <div className="summary-val">{summaryLabels[picks[s]]}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                                <button className="btn" style={{width: "100%", marginTop: "14px", background: "var(--accent)"}} onClick={reset}>
-                                    New Check-in
-                                </button>
-                            </div>
-
-                            {history.length > 0 && (
-                                <div className="card">
-                                    <h3 style={{marginTop: 0, color: "var(--accent)"}}>Recent Check-ins</h3>
-                                    {history.map(h => (
-                                        <div key={h.id} style={{padding: "12px", background: "var(--bg)", borderRadius: "12px", marginBottom: "10px"}}>
-                                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px"}}>
-                                                <span style={{fontSize: "12px", color: "var(--text-muted)"}}>{formatDate(h.created_at)}</span>
-                                                <button onClick={async () => { if(confirm("Delete this check-in?")) { await supabase.from('daily_checkins').delete().eq('id', h.id); loadHistory(); }}} style={{background:"transparent", border:"none", color:"var(--danger)", cursor:"pointer", fontSize:"16px", padding:"0"}}>🗑️</button>
-                                            </div>
-                                            <div style={{display: "flex", gap: "10px", flexWrap: "wrap"}}>
-                                                <span style={{fontSize: "13px"}}>{summaryIcons[h.energy]} {summaryLabels[h.energy]}</span>
-                                                <span style={{fontSize: "13px", color: "var(--text-muted)"}}>·</span>
-                                                <span style={{fontSize: "13px"}}>{summaryIcons[h.communication]} {summaryLabels[h.communication]}</span>
-                                                <span style={{fontSize: "13px", color: "var(--text-muted)"}}>·</span>
-                                                <span style={{fontSize: "13px"}}>{summaryIcons[h.plan]} {summaryLabels[h.plan]}</span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                <h2 style={{color: "var(--success)", marginTop: 0}}>¡Plan guardado! ✅</h2>
+                                <p style={{color: "var(--text-muted)", fontSize: "14px", marginBottom: "20px"}}>El check-in de hoy ha sido registrado.</p>
+                                <div style={{display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "20px", padding: "14px", background: "var(--bg)", borderRadius: "12px"}}>
+                                    {picks[1] && <span style={{fontSize: "14px"}}>{energyIcons[picks[1]]} {energyLabels[picks[1]]}</span>}
+                                    <span style={{color: "var(--border)"}}>·</span>
+                                    {picks[2] && <span style={{fontSize: "14px"}}>{commIcons[picks[2]]} {commLabels[picks[2]]}</span>}
                                 </div>
-                            )}
+                                {sessionPlan.length > 0 && (
+                                    <>
+                                        <h3 style={{color: "var(--accent)", marginBottom: "6px", marginTop: 0}}>📅 Plan de sesión de hoy</h3>
+                                        <Timeline plan={sessionPlan} />
+                                    </>
+                                )}
+                                <button className="btn" style={{width:"100%", marginTop:"18px"}} onClick={reset}>Nuevo Check-in</button>
+                            </div>
+                            <HistoryList />
                         </div>
                     );
                 }
@@ -491,7 +604,7 @@
                     <div>
                         <div className="card">
                             <div className="checkin-dots">
-                                {[1,2,3].map(n => (
+                                {Array.from({length: TOTAL}, (_, i) => i + 1).map(n => (
                                     <div key={n} className={`checkin-dot ${screen === n ? 'active' : ''}`}></div>
                                 ))}
                             </div>
@@ -500,58 +613,72 @@
                             <p style={{color: "var(--text-muted)", fontSize: "14px", marginTop: 0, marginBottom: "20px"}}>{screenSubs[screen]}</p>
 
                             {screen === 1 && (
-                                <div className="battery-outer">
-                                    <div className="battery-body">
-                                        <div className="battery-fill" style={{width: battPct + '%', background: battColor}}></div>
+                                <>
+                                    <div className="battery-outer">
+                                        <div className="battery-body">
+                                            <div className="battery-fill" style={{width: battPct + '%', background: battColor}}></div>
+                                        </div>
+                                        <div className="battery-tip"></div>
                                     </div>
-                                    <div className="battery-tip"></div>
-                                </div>
+                                    {energyOpts.map(opt => (
+                                        <button key={opt.val} className={`checkin-btn ${picks[1] === opt.val ? 'selected' : ''}`}
+                                            onClick={() => { setPicks(p => ({...p, 1: opt.val})); setBattPct(opt.batt); setBattColor(opt.color); }}>
+                                            <span className="ci-icon">{opt.icon}</span>
+                                            <div><div>{opt.label}</div><div className="ci-label">{opt.sub}</div></div>
+                                        </button>
+                                    ))}
+                                </>
                             )}
 
-                            {options[screen].map(opt => (
-                                <button
-                                    key={opt.val}
-                                    className={`checkin-btn ${picks[screen] === opt.val ? 'selected' : ''}`}
-                                    style={picks[screen] === opt.val ? {borderColor: "var(--accent)"} : {}}
-                                    onClick={() => select(opt)}
-                                >
+                            {screen === 2 && commOpts.map(opt => (
+                                <button key={opt.val} className={`checkin-btn ${picks[2] === opt.val ? 'selected' : ''}`}
+                                    onClick={() => setPicks(p => ({...p, 2: opt.val}))}>
                                     <span className="ci-icon">{opt.icon}</span>
-                                    <div>
-                                        <div>{opt.label}</div>
-                                        <div className="ci-label">{opt.sub}</div>
-                                    </div>
+                                    <div><div>{opt.label}</div><div className="ci-label">{opt.sub}</div></div>
                                 </button>
                             ))}
 
+                            {screen === 3 && (
+                                <>
+                                    {actOpts.map(opt => (
+                                        <button key={opt.val} className={`activity-btn ${activities.includes(opt.val) ? 'sel' : ''}`}
+                                            onClick={() => toggleAct(opt.val)}>
+                                            <span style={{fontSize: "30px", flexShrink: 0}}>{opt.icon}</span>
+                                            <div style={{flex: 1}}>
+                                                <div>{opt.label}</div>
+                                                <div style={{fontSize: "12px", color: "var(--text-muted)", fontWeight: 400, marginTop: "2px"}}>{opt.sub}</div>
+                                            </div>
+                                            <div className="check-circle">{activities.includes(opt.val) ? '✓' : ''}</div>
+                                        </button>
+                                    ))}
+                                    {activities.includes('exposure') && (
+                                        <div className="diff-panel">
+                                            <p style={{margin: "0 0 12px 0", fontWeight: "bold", fontSize: "14px", color: "var(--accent)"}}>🎯 ¿Qué tan difícil quieres que sea?</p>
+                                            <div style={{display: "flex", gap: "8px"}}>
+                                                {diffOpts.map(d => (
+                                                    <button key={d.val} className={`diff-btn ${exposureDiff === d.val ? 'sel' : ''}`}
+                                                        onClick={() => setExposureDiff(d.val)}>
+                                                        <div style={{fontSize: "22px", marginBottom: "6px"}}>{d.icon}</div>
+                                                        <div style={{fontSize: "13px"}}>{d.label}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {screen === 4 && sessionPlan.length > 0 && <Timeline plan={sessionPlan} />}
+
                             <button
-                                className={`checkin-next ${picks[screen] && !saving ? 'ready' : ''}`}
-                                onClick={next}
-                                disabled={saving}
+                                className={`checkin-next ${canNext() && !saving ? 'ready' : ''}`}
+                                onClick={next} disabled={saving || !canNext()}
+                                style={{marginTop: screen === 3 ? "16px" : "10px"}}
                             >
-                                {saving ? 'Saving...' : screen === 3 ? 'Save ✓' : 'Next →'}
+                                {saving ? 'Guardando...' : screen === TOTAL ? '💾 Guardar plan de sesión' : 'Siguiente →'}
                             </button>
                         </div>
-
-                        {history.length > 0 && (
-                            <div className="card">
-                                <h3 style={{marginTop: 0, color: "var(--accent)"}}>Recent Check-ins</h3>
-                                {history.map(h => (
-                                    <div key={h.id} style={{padding: "12px", background: "var(--bg)", borderRadius: "12px", marginBottom: "10px"}}>
-                                        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px"}}>
-                                            <span style={{fontSize: "12px", color: "var(--text-muted)"}}>{formatDate(h.created_at)}</span>
-                                            <button onClick={async () => { if(confirm("Delete this check-in?")) { await supabase.from('daily_checkins').delete().eq('id', h.id); loadHistory(); }}} style={{background:"transparent", border:"none", color:"var(--danger)", cursor:"pointer", fontSize:"16px", padding:"0"}}>🗑️</button>
-                                        </div>
-                                        <div style={{display: "flex", gap: "10px", flexWrap: "wrap"}}>
-                                            <span style={{fontSize: "13px"}}>{summaryIcons[h.energy]} {summaryLabels[h.energy]}</span>
-                                            <span style={{fontSize: "13px", color: "var(--text-muted)"}}>·</span>
-                                            <span style={{fontSize: "13px"}}>{summaryIcons[h.communication]} {summaryLabels[h.communication]}</span>
-                                            <span style={{fontSize: "13px", color: "var(--text-muted)"}}>·</span>
-                                            <span style={{fontSize: "13px"}}>{summaryIcons[h.plan]} {summaryLabels[h.plan]}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        <HistoryList />
                     </div>
                 );
             };
