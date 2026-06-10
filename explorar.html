@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explorando mis dudas — Oscar</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #FFF8F4;
+      --surface:   #FFFFFF;
+      --primary:   #E07A5F;
+      --primary-l: #FDEEE9;
+      --accent:    #6BAB90;
+      --accent-l:  #E4F4EE;
+      --blue:      #7B9EC8;
+      --blue-l:    #EBF2FA;
+      --warm:      #F2C14E;
+      --warm-l:    #FEF7E0;
+      --text:      #2C2C3A;
+      --muted:     #9490AA;
+      --radius:    20px;
+      --shadow:    0 6px 28px rgba(224,122,95,0.10);
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 640px;
+      overflow: hidden;
+    }
+
+    #progress-bar { height: 7px; background: var(--primary-l); }
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--warm));
+      transition: width 0.45s ease;
+      border-radius: 7px;
+    }
+
+    .screen { display: none; padding: 40px 36px 36px; animation: fadeUp 0.35s ease; }
+    .screen.active { display: block; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── WELCOME ── */
+    .hero-icon { font-size: 60px; text-align: center; margin-bottom: 16px; }
+    h1 { font-size: 1.65rem; font-weight: 800; color: var(--primary); text-align: center; margin-bottom: 10px; }
+    .subtitle {
+      color: var(--muted); text-align: center; font-size: 0.97rem;
+      line-height: 1.65; margin-bottom: 32px;
+    }
+
+    /* ── SECTION BADGE ── */
+    .badge {
+      display: inline-block;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; padding: 4px 14px;
+      border-radius: 99px; margin-bottom: 22px;
+    }
+    .badge.red   { background: var(--primary-l); color: var(--primary); }
+    .badge.green { background: var(--accent-l);  color: var(--accent); }
+    .badge.blue  { background: var(--blue-l);    color: var(--blue); }
+    .badge.warm  { background: var(--warm-l);    color: #B5891A; }
+
+    /* ── QUESTION ── */
+    .qblock { margin-bottom: 30px; }
+    .qlabel {
+      font-size: 1rem; font-weight: 700; line-height: 1.5; margin-bottom: 4px;
+    }
+    .qhint { font-size: 0.84rem; color: var(--muted); margin-bottom: 14px; }
+
+    /* ── OPTIONS ── */
+    .opts { display: flex; flex-wrap: wrap; gap: 9px; }
+    .opt {
+      border: 2px solid #EDE9F5;
+      border-radius: 12px; padding: 10px 16px;
+      font-size: 0.91rem; font-weight: 500;
+      cursor: pointer; transition: all 0.17s;
+      background: var(--surface); color: var(--text);
+      user-select: none;
+    }
+
+    /* color variants */
+    .opt.red:hover    { border-color: var(--primary); background: var(--primary-l); }
+    .opt.red.sel      { border-color: var(--primary); background: var(--primary);   color: #fff; }
+    .opt.green:hover  { border-color: var(--accent);  background: var(--accent-l); }
+    .opt.green.sel    { border-color: var(--accent);  background: var(--accent);    color: #fff; }
+    .opt.blue:hover   { border-color: var(--blue);    background: var(--blue-l); }
+    .opt.blue.sel     { border-color: var(--blue);    background: var(--blue);      color: #fff; }
+    .opt.warm:hover   { border-color: var(--warm);    background: var(--warm-l); }
+    .opt.warm.sel     { border-color: var(--warm);    background: var(--warm);      color: #fff; }
+
+    /* multi-select (no single-constraint) */
+    .opt.multi.sel { border-color: var(--primary); background: var(--primary-l); color: var(--primary); font-weight: 700; }
+
+    /* ── SLIDER ── */
+    .slider-section { padding: 2px 0 6px; }
+    .slider-ends { display: flex; justify-content: space-between; font-size: 0.77rem; color: var(--muted); margin-bottom: 7px; }
+    input[type=range] {
+      -webkit-appearance: none; width: 100%;
+      height: 7px; border-radius: 7px;
+      background: var(--primary-l); outline: none;
+    }
+    input[type=range].green-track { background: var(--accent-l); }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(224,122,95,0.35);
+      transition: transform 0.14s;
+    }
+    input[type=range].green-track::-webkit-slider-thumb { background: var(--accent); }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .slider-big {
+      text-align: center; font-size: 2rem; font-weight: 800;
+      color: var(--primary); margin-top: 10px;
+    }
+    .slider-big.green { color: var(--accent); }
+
+    /* ── DUAL METER ── */
+    .dual-meter { display: flex; gap: 12px; margin-top: 14px; }
+    .meter-col { flex: 1; }
+    .meter-label { font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; }
+    .meter-label.red   { color: var(--primary); }
+    .meter-label.green { color: var(--accent); }
+    .meter-bg { background: #F3F0FF; border-radius: 8px; height: 12px; overflow: hidden; }
+    .meter-fill { height: 100%; border-radius: 8px; transition: width 1.2s ease; }
+    .meter-fill.red   { background: linear-gradient(90deg, var(--primary-l), var(--primary)); }
+    .meter-fill.green { background: linear-gradient(90deg, var(--accent-l),  var(--accent)); }
+
+    /* ── RESULT ── */
+    .res-hero { text-align: center; padding: 20px 0 12px; }
+    .res-icon { font-size: 68px; margin-bottom: 10px; }
+    .res-title { font-size: 1.45rem; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+    .res-sub { font-size: 0.93rem; color: var(--muted); line-height: 1.65; max-width: 420px; margin: 0 auto 22px; }
+
+    .rcard {
+      border-radius: 14px; padding: 18px 20px; margin-bottom: 14px;
+    }
+    .rcard.red   { background: var(--primary-l); }
+    .rcard.green { background: var(--accent-l); }
+    .rcard.blue  { background: var(--blue-l); }
+    .rcard.warm  { background: var(--warm-l); }
+    .rcard h3 {
+      font-size: 0.78rem; text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 8px;
+    }
+    .rcard.red h3   { color: var(--primary); }
+    .rcard.green h3 { color: var(--accent); }
+    .rcard.blue h3  { color: var(--blue); }
+    .rcard.warm h3  { color: #9A6D0A; }
+    .rcard p { font-size: 0.92rem; line-height: 1.65; color: var(--text); }
+
+    /* ── GAP VISUAL ── */
+    .gap-display {
+      display: flex; align-items: center; gap: 10px;
+      background: #F9F7FF; border-radius: 14px;
+      padding: 16px 18px; margin: 14px 0;
+    }
+    .gap-col { flex: 1; text-align: center; }
+    .gap-num { font-size: 2.2rem; font-weight: 800; }
+    .gap-num.red   { color: var(--primary); }
+    .gap-num.green { color: var(--accent); }
+    .gap-lbl { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+    .gap-arrow { font-size: 1.4rem; color: var(--muted); }
+
+    /* belief box */
+    .belief-box {
+      background: #FFF3F0; border: 2px dashed var(--primary);
+      border-radius: 12px; padding: 14px 16px;
+      font-size: 0.92rem; line-height: 1.6; color: var(--text);
+      margin-top: 10px;
+    }
+    .belief-box strong { color: var(--primary); }
+
+    .therapist-note {
+      background: #F7F6FF;
+      border-left: 4px solid var(--blue);
+      border-radius: 0 12px 12px 0;
+      padding: 14px 16px;
+      font-size: 0.84rem; color: var(--muted);
+      margin-top: 18px; line-height: 1.6;
+    }
+    .therapist-note strong { color: var(--blue); }
+
+    hr { border: none; border-top: 1.5px solid #F0EEF9; margin: 22px 0; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      width: 100%; padding: 15px; border: none;
+      border-radius: 13px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; letter-spacing: 0.02em;
+    }
+    .btn-main { background: var(--primary); color: #fff; }
+    .btn-main:hover { background: #c9684f; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(224,122,95,0.28); }
+    .btn-main:disabled { background: var(--primary-l); color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 2px solid #EDE9F5; margin-top: 10px; }
+    .btn-ghost:hover { background: var(--primary-l); color: var(--primary); border-color: var(--primary); }
+
+    @media (max-width: 500px) {
+      .screen { padding: 28px 18px 24px; }
+      h1 { font-size: 1.35rem; }
+      .dual-meter { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+
+  <!-- ══ S0 BIENVENIDA ══ -->
+  <div class="screen active" id="s0">
+    <div class="hero-icon">🤔</div>
+    <h1>Explorando mis dudas</h1>
+    <p class="subtitle">
+      No estás seguro de qué hacer hoy, y eso está bien.<br><br>
+      Este cuestionario va a ayudarnos a entender mejor qué es lo que sientes
+      — no para juzgarte, sino para encontrar juntos el paso que <em>sí</em> se sienta posible.
+      <br><br>
+      Responde lo más honesto que puedas. Toma unos <strong>4–5 minutos</strong>.
+    </p>
+    <button class="btn btn-main" onclick="go(1)">Vamos a explorar 🔍</button>
+  </div>
+
+  <!-- ══ S1 EL "QUIERO" ══ -->
+  <div class="screen" id="s1">
+    <span class="badge red">Parte 1 — El "quiero"</span>
+
+    <!-- Q1 importancia -->
+    <div class="qblock">
+      <p class="qlabel">1. ¿Qué tan importante es para ti mejorar en situaciones sociales?</p>
+      <p class="qhint">0 = nada importante, 10 = lo más importante ahora mismo</p>
+      <div class="slider-section">
+        <div class="slider-ends"><span>0 — No me importa</span><span>10 — Me importa mucho</span></div>
+        <input type="range" min="0" max="10" value="5" id="q1" oninput="sliderUpdate('q1','q1v',false)">
+        <div class="slider-big" id="q1v">5</div>
+      </div>
+    </div>
+
+    <!-- Q2 motivación -->
+    <div class="qblock">
+      <p class="qlabel">2. ¿Qué te motiva a querer mejorar en lo social?</p>
+      <p class="qhint">Puedes elegir más de uno</p>
+      <div class="opts" id="q2">
+        <div class="opt red multi" onclick="toggleM(this)">Relacionarme mejor con otros 🤝</div>
+        <div class="opt red multi" onclick="toggleM(this)">Sentirme más libre 🕊️</div>
+        <div class="opt red multi" onclick="toggleM(this)">Cumplir metas personales 🎯</div>
+        <div class="opt red multi" onclick="toggleM(this)">No perderme cosas importantes</div>
+        <div class="opt red multi" onclick="toggleM(this)">Sentirme más seguro de mí mismo</div>
+        <div class="opt red multi" onclick="toggleM(this)">Por trabajo o estudios</div>
+      </div>
+    </div>
+
+    <!-- Q3 costo de evitar -->
+    <div class="qblock">
+      <p class="qlabel">3. ¿Qué cosas te estás perdiendo cuando evitas situaciones sociales?</p>
+      <p class="qhint">Selecciona las que apliquen</p>
+      <div class="opts" id="q3">
+        <div class="opt warm multi" onclick="toggleM(this)">Hacer nuevos amigos</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Disfrutar salidas o eventos</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Oportunidades en el trabajo/estudio</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Sentirme parte de un grupo</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Paz mental (me quedo pensando)</div>
+        <div class="opt warm multi" onclick="toggleM(this)">No me pierdo nada importante</div>
+      </div>
+    </div>
+
+    <button class="btn btn-main" id="btn1" onclick="go(2)">Continuar →</button>
+  </div>
+
+  <!-- ══ S2 EL "NO PUEDO" ══ -->
+  <div class="screen" id="s2">
+    <span class="badge green">Parte 2 — El "no puedo"</span>
+
+    <!-- Q4 confianza -->
+    <div class="qblock">
+      <p class="qlabel">4. ¿Qué tan seguro te sientes de poder intentar algo social hoy?</p>
+      <p class="qhint">0 = no me siento capaz en absoluto, 10 = muy seguro</p>
+      <div class="slider-section">
+        <div class="slider-ends"><span>0 — Imposible</span><span>10 — Puedo sin problema</span></div>
+        <input type="range" min="0" max="10" value="5" id="q4" class="green-track" oninput="sliderUpdate('q4','q4v',true)">
+        <div class="slider-big green" id="q4v">5</div>
+      </div>
+    </div>
+
+    <!-- Q5 qué frena -->
+    <div class="qblock">
+      <p class="qlabel">5. ¿Qué es lo que más te frena para intentarlo?</p>
+      <p class="qhint">Elige el que más se parezca</p>
+      <div class="opts" id="q5">
+        <div class="opt green" onclick="sel('q5',this,'quedar_mal')">Miedo a quedar mal 😳</div>
+        <div class="opt green" onclick="sel('q5',this,'rechazo')">Miedo al rechazo 💔</div>
+        <div class="opt green" onclick="sel('q5',this,'blanco')">Me quedo en blanco, no sé qué decir 🤐</div>
+        <div class="opt green" onclick="sel('q5',this,'juzgar')">Miedo a que me juzguen</div>
+        <div class="opt green" onclick="sel('q5',this,'control')">Siento que no controlo mi cuerpo (voz, cara)</div>
+        <div class="opt green" onclick="sel('q5',this,'ns')">No sé exactamente, solo siento que no puedo</div>
+      </div>
+    </div>
+
+    <!-- Q6 predicción -->
+    <div class="qblock">
+      <p class="qlabel">6. Si intentaras algo social hoy, ¿qué crees que pasaría?</p>
+      <div class="opts" id="q6">
+        <div class="opt blue" onclick="sel('q6',this,'malo')">Algo malo o vergonzoso 😬</div>
+        <div class="opt blue" onclick="sel('q6',this,'nada')">Probablemente nada especial</div>
+        <div class="opt blue" onclick="sel('q6',this,'bien')">Creo que iría bien 🙂</div>
+        <div class="opt blue" onclick="sel('q6',this,'ns')">No sé, no me lo puedo imaginar</div>
+      </div>
+    </div>
+
+    <!-- Q7 probabilidad -->
+    <div class="qblock">
+      <p class="qlabel">7. ¿Qué probabilidad le das a que pase algo realmente malo?</p>
+      <p class="qhint">Sé honesto, no hay respuesta incorrecta</p>
+      <div class="slider-section">
+        <div class="slider-ends"><span>0% — Imposible</span><span>100% — Seguro que pasa</span></div>
+        <input type="range" min="0" max="100" value="50" id="q7" oninput="sliderUpdate('q7','q7v',false)">
+        <div class="slider-big" id="q7v">50%</div>
+      </div>
+    </div>
+
+    <button class="btn btn-main" id="btn2" onclick="go(3)" disabled>Continuar →</button>
+  </div>
+
+  <!-- ══ S3 EL PASO POSIBLE ══ -->
+  <div class="screen" id="s3">
+    <span class="badge blue">Parte 3 — El paso posible</span>
+
+    <!-- Q8 tamaño del reto -->
+    <div class="qblock">
+      <p class="qlabel">8. ¿Qué tan pequeño tendría que ser el reto para que te sintieras capaz de intentarlo?</p>
+      <div class="opts" id="q8">
+        <div class="opt blue" onclick="sel('q8',this,1)">Muy, muy pequeño — casi invisible 🐜</div>
+        <div class="opt blue" onclick="sel('q8',this,2)">Pequeño, pero algo real 🌱</div>
+        <div class="opt blue" onclick="sel('q8',this,3)">Mediano, con un poco de esfuerzo 💪</div>
+        <div class="opt blue" onclick="sel('q8',this,4)">Ya me animaría a algo grande hoy 🔥</div>
+      </div>
+    </div>
+
+    <!-- Q9 escenario manejable -->
+    <div class="qblock">
+      <p class="qlabel">9. De estas opciones, ¿cuál te parece más manejable hoy?</p>
+      <div class="opts" id="q9">
+        <div class="opt blue" onclick="sel('q9',this,'mirar')">Solo mirar a los ojos a alguien y sonreír 👀</div>
+        <div class="opt blue" onclick="sel('q9',this,'saludar')">Saludar a alguien conocido 👋</div>
+        <div class="opt blue" onclick="sel('q9',this,'pregunta')">Hacer una pregunta breve a alguien</div>
+        <div class="opt blue" onclick="sel('q9',this,'conv')">Tener una conversación corta (2–3 minutos)</div>
+        <div class="opt blue" onclick="sel('q9',this,'ninguno')">Ninguna me parece manejable hoy</div>
+      </div>
+    </div>
+
+    <!-- Q10 apoyo necesario -->
+    <div class="qblock">
+      <p class="qlabel">10. ¿Qué necesitarías para animarte a intentar ese paso?</p>
+      <p class="qhint">Puedes elegir varios</p>
+      <div class="opts" id="q10">
+        <div class="opt warm multi" onclick="toggleM(this)">Practicarlo primero aquí con Jefferson 🎭</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Que sea en un lugar seguro / conocido</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Saber exactamente qué voy a decir</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Que no dure más de 1 minuto</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Que nadie más esté mirando</div>
+        <div class="opt warm multi" onclick="toggleM(this)">Nada especial, puedo solo</div>
+      </div>
+    </div>
+
+    <button class="btn btn-main" id="btn3" onclick="go(4)" disabled>Ver mi resultado 🎯</button>
+  </div>
+
+  <!-- ══ S4 RESULTADO ══ -->
+  <div class="screen" id="s4">
+    <div class="res-hero">
+      <div class="res-icon" id="r-icon">🔍</div>
+      <div class="res-title" id="r-title">Título</div>
+      <p class="res-sub" id="r-sub">Descripción</p>
+    </div>
+
+    <!-- GAP quiero vs puedo -->
+    <div class="rcard red">
+      <h3>La distancia entre el quiero y el puedo</h3>
+      <div class="gap-display">
+        <div class="gap-col">
+          <div class="gap-num red" id="g-want">—</div>
+          <div class="gap-lbl">Qué tanto quiero</div>
+        </div>
+        <div class="gap-arrow">→</div>
+        <div class="gap-col">
+          <div class="gap-num green" id="g-can">—</div>
+          <div class="gap-lbl">Qué tan seguro me siento</div>
+        </div>
+      </div>
+      <p id="gap-text" style="font-size:0.9rem;color:var(--muted);line-height:1.6;margin-top:8px"></p>
+    </div>
+
+    <!-- creencia que frena -->
+    <div class="rcard green">
+      <h3>Lo que está frenando</h3>
+      <div class="belief-box" id="belief-box"></div>
+    </div>
+
+    <!-- paso sugerido -->
+    <div class="rcard blue">
+      <h3>El paso posible para hoy</h3>
+      <p id="step-text"></p>
+    </div>
+
+    <!-- qué necesitas -->
+    <div class="rcard warm">
+      <h3>Lo que necesitas para intentarlo</h3>
+      <p id="need-text"></p>
+    </div>
+
+    <div class="therapist-note">
+      <strong>Nota clínica para Jefferson:</strong>
+      <span id="therapist-text"></span>
+    </div>
+
+    <hr>
+    <button class="btn btn-ghost" onclick="restart()">Empezar de nuevo 🔄</button>
+  </div>
+</div>
+
+<script>
+  const S = {
+    q1: 5,    // importancia (0-10)
+    q2: [],   // motivaciones (multi)
+    q3: [],   // costo evitar (multi)
+    q4: 5,    // confianza (0-10)
+    q5: null, // qué frena
+    q6: null, // predicción
+    q7: 50,   // probabilidad (0-100)
+    q8: null, // tamaño reto (1-4)
+    q9: null, // escenario
+    q10: [],  // apoyo necesario
+  };
+
+  /* ── NAV ── */
+  function go(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('s' + n).classList.add('active');
+    document.getElementById('progress-fill').style.width = (n / 4 * 100) + '%';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (n === 4) buildResults();
+  }
+
+  function restart() {
+    S.q1=5; S.q4=5; S.q7=50;
+    ['q2','q3','q10'].forEach(k => S[k]=[]);
+    ['q5','q6','q8','q9'].forEach(k => S[k]=null);
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('sel','selected'));
+    ['q1','q4','q7'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = id === 'q7' ? 50 : 5;
+    });
+    document.getElementById('q1v').textContent = '5';
+    document.getElementById('q4v').textContent = '5';
+    document.getElementById('q7v').textContent = '50%';
+    ['btn2','btn3'].forEach(id => document.getElementById(id).disabled = true);
+    go(0);
+  }
+
+  /* ── INPUTS ── */
+  function sliderUpdate(id, valId, isGreen) {
+    const v = document.getElementById(id).value;
+    const disp = id === 'q7' ? v + '%' : v;
+    document.getElementById(valId).textContent = disp;
+    S[id] = parseInt(v);
+  }
+
+  function sel(qid, el, val) {
+    document.querySelectorAll('#' + qid + ' .opt').forEach(o => o.classList.remove('sel'));
+    el.classList.add('sel');
+    S[qid] = val;
+    checkButtons();
+  }
+
+  function toggleM(el) {
+    el.classList.toggle('sel');
+  }
+
+  function checkButtons() {
+    document.getElementById('btn2').disabled = !(S.q5 && S.q6);
+    document.getElementById('btn3').disabled = !(S.q8 && S.q9);
+  }
+
+  /* ── RESULTS ── */
+  function buildResults() {
+    const want = S.q1;   // 0-10
+    const can  = S.q4;   // 0-10
+    const gap  = want - can;
+
+    document.getElementById('g-want').textContent = want + '/10';
+    document.getElementById('g-can').textContent  = can  + '/10';
+
+    // Icon + title
+    const icon  = document.getElementById('r-icon');
+    const title = document.getElementById('r-title');
+    const sub   = document.getElementById('r-sub');
+
+    if (can >= 7) {
+      icon.textContent  = '🚀';
+      title.textContent = '¡Tienes más capacidad de la que crees!';
+      sub.textContent   = 'Tu confianza es alta. Hoy es un buen día para dar un paso real y comprobarlo por ti mismo.';
+    } else if (can >= 4) {
+      icon.textContent  = '🌱';
+      title.textContent = 'Hay un paso posible, aunque pequeño';
+      sub.textContent   = 'No estás en cero. Con el tamaño correcto de reto, hay algo que hoy sí puedes intentar.';
+    } else {
+      icon.textContent  = '🛡️';
+      title.textContent = 'Hoy el cuidado es la prioridad';
+      sub.textContent   = 'Tu confianza está baja hoy. Eso no significa fallar — significa que necesitas un apoyo diferente ahora mismo.';
+    }
+
+    // Gap text
+    const gapEl = document.getElementById('gap-text');
+    if (gap > 4) {
+      gapEl.textContent = 'Quieres mucho más de lo que te sientes capaz ahora. Esa brecha es exactamente lo que vamos a reducir, poco a poco.';
+    } else if (gap > 0) {
+      gapEl.textContent = 'Hay una pequeña distancia entre el querer y el poder. Es normal, y es manejable.';
+    } else if (gap === 0) {
+      gapEl.textContent = 'Tu motivación y tu confianza están equilibradas. Buen punto de partida.';
+    } else {
+      gapEl.textContent = 'Tu confianza supera tu motivación declarada. Puede que estés listo para más de lo que crees que "quieres" hoy.';
+    }
+
+    // Belief / what's blocking
+    const beliefMap = {
+      quedar_mal: 'Miedo a quedar mal → <strong>Creencia probable:</strong> "Si me equivoco, los demás van a pensar mal de mí para siempre." Las personas olvidan los errores ajenos mucho más rápido de lo que creemos.',
+      rechazo:    'Miedo al rechazo → <strong>Creencia probable:</strong> "Si alguien no me acepta, eso dice algo terrible sobre mí." El rechazo duele, pero no nos define.',
+      blanco:     'Miedo a quedarse en blanco → <strong>Creencia probable:</strong> "Tengo que saber exactamente qué decir o algo saldrá mal." El silencio breve es humano, no un error fatal.',
+      juzgar:     'Miedo a ser juzgado → <strong>Creencia probable:</strong> "La gente está mirando todo lo que hago y esperando que falle." Solemos sobreestimar cuánta atención prestan los demás.',
+      control:    'Miedo a no controlar el cuerpo → <strong>Creencia probable:</strong> "Si se me nota que estoy nervioso, todo saldrá mal." La ansiedad visible no es tan notoria como la sentimos.',
+      ns:         'Todavía no sabes exactamente qué te frena. Eso es importante — identificarlo juntos puede ser el primer paso de hoy.',
+    };
+    document.getElementById('belief-box').innerHTML = beliefMap[S.q5] || '—';
+
+    // Step suggestion
+    const stepMap = {
+      mirar:   'Hoy: mirar a los ojos a una persona (conocida o desconocida) y sostener la mirada con una sonrisa breve. Dura menos de 3 segundos. Es un reto real.',
+      saludar: 'Hoy: saludar a una persona conocida con su nombre. Solo "Hola, [nombre]" es suficiente. Sin presión de continuar.',
+      pregunta:'Hoy: hacer una pregunta práctica a alguien (hora, dirección, algo del trabajo/clase). No es conversación — es un reto acotado.',
+      conv:    'Hoy: iniciar una conversación de 2–3 minutos con alguien. Jefferson puede ayudarte a preparar los primeros dos temas antes de hacerlo.',
+      ninguno: 'Hoy no hay un paso social externo. La sesión puede enfocarse en imaginar el escenario, practicar en roleplay aquí con Jefferson, y preparar la próxima semana.',
+    };
+    document.getElementById('step-text').textContent = stepMap[S.q9] || '—';
+
+    // What's needed
+    const needs = document.querySelectorAll('#q10 .sel');
+    const needTexts = [];
+    needs.forEach(n => {
+      const t = n.textContent.trim();
+      if (t.includes('Jefferson')) needTexts.push('practicar el reto en roleplay con Jefferson primero');
+      else if (t.includes('seguro')) needTexts.push('hacerlo en un entorno familiar y seguro');
+      else if (t.includes('qué voy a decir')) needTexts.push('tener un guión breve preparado');
+      else if (t.includes('1 minuto')) needTexts.push('que el reto sea muy breve y acotado en tiempo');
+      else if (t.includes('nadie')) needTexts.push('privacidad, sin observadores');
+      else if (t.includes('solo')) needTexts.push('no necesita condiciones especiales — se siente listo');
+    });
+    document.getElementById('need-text').textContent =
+      needTexts.length > 0
+        ? needTexts.join(', ') + '.'
+        : 'No indicó condiciones específicas.';
+
+    // Therapist note
+    const predMap = {malo:'predice algo malo',nada:'predice que nada especial pasará',bien:'predice que irá bien',ns:'no puede imaginar el resultado'};
+    const sizeMap = {1:'reto mínimo',2:'reto pequeño',3:'reto mediano',4:'reto grande'};
+    document.getElementById('therapist-text').textContent =
+      `Importancia: ${want}/10. Confianza: ${can}/10. Brecha: ${gap > 0 ? '+'+gap : gap} puntos. ` +
+      `Principal freno: ${S.q5 || '—'}. Predicción: ${predMap[S.q6] || '—'}. ` +
+      `Probabilidad daño estimada por Oscar: ${S.q7}%. ` +
+      `Tamaño de reto tolerado: ${sizeMap[S.q8] || '—'}. ` +
+      `Escenario elegido: ${S.q9 || '—'}.`;
+  }
+</script>
+</body>
+</html>

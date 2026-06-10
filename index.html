@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Check-in de Hoy — Oscar</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #F5F3FF;
+      --surface:   #FFFFFF;
+      --primary:   #7C6BE8;
+      --primary-l: #EDE9FD;
+      --accent:    #64B6AC;
+      --accent-l:  #E0F5F3;
+      --warm:      #FFBA5E;
+      --warm-l:    #FFF3DC;
+      --text:      #2D2B3D;
+      --muted:     #8A87A8;
+      --danger:    #E07070;
+      --radius:    18px;
+      --shadow:    0 4px 24px rgba(124,107,232,0.10);
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 640px;
+      overflow: hidden;
+    }
+
+    /* ── PROGRESS BAR ── */
+    #progress-bar {
+      height: 6px;
+      background: var(--primary-l);
+    }
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transition: width 0.4s ease;
+      border-radius: 6px;
+    }
+
+    /* ── SCREENS ── */
+    .screen { display: none; padding: 40px 36px 36px; }
+    .screen.active { display: block; }
+
+    /* ── WELCOME ── */
+    .welcome-emoji { font-size: 64px; margin-bottom: 16px; text-align: center; }
+    h1 { font-size: 1.75rem; font-weight: 700; color: var(--primary); text-align: center; margin-bottom: 8px; }
+    .subtitle { color: var(--muted); text-align: center; font-size: 1rem; line-height: 1.6; margin-bottom: 32px; }
+
+    /* ── SECTION HEADER ── */
+    .section-label {
+      display: inline-block;
+      background: var(--primary-l);
+      color: var(--primary);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 99px;
+      margin-bottom: 20px;
+    }
+    .section-label.accent { background: var(--accent-l); color: var(--accent); }
+
+    /* ── QUESTION ── */
+    .question-block { margin-bottom: 28px; }
+    .question-text {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    .q-sub {
+      font-size: 0.88rem;
+      color: var(--muted);
+      font-weight: 400;
+      display: block;
+      margin-top: 3px;
+    }
+
+    /* ── OPTION CHIPS ── */
+    .options { display: flex; flex-wrap: wrap; gap: 10px; }
+    .opt {
+      border: 2px solid #E5E2F5;
+      border-radius: 12px;
+      padding: 10px 18px;
+      font-size: 0.92rem;
+      cursor: pointer;
+      transition: all 0.18s;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 500;
+      user-select: none;
+    }
+    .opt:hover { border-color: var(--primary); background: var(--primary-l); }
+    .opt.selected { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .opt.accent.selected { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .opt.accent:hover { border-color: var(--accent); background: var(--accent-l); }
+
+    /* ── SLIDER ── */
+    .slider-wrap { padding: 4px 0 8px; }
+    .slider-labels { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--primary-l);
+      border-radius: 6px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(124,107,232,0.35);
+      transition: transform 0.15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .slider-value {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 10px;
+    }
+
+    /* ── EMOJI SCALE ── */
+    .emoji-scale { display: flex; justify-content: space-between; gap: 6px; }
+    .emoji-opt {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+      padding: 10px 4px;
+      border-radius: 12px;
+      border: 2px solid transparent;
+      transition: all 0.18s;
+    }
+    .emoji-opt .em { font-size: 1.8rem; display: block; margin-bottom: 4px; }
+    .emoji-opt .em-label { font-size: 0.7rem; color: var(--muted); display: block; }
+    .emoji-opt:hover { background: var(--primary-l); }
+    .emoji-opt.selected { border-color: var(--primary); background: var(--primary-l); }
+    .emoji-opt.selected .em-label { color: var(--primary); font-weight: 600; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: #6858d3; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(124,107,232,0.3); }
+    .btn-primary:disabled { background: var(--primary-l); color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary-l); margin-top: 10px; }
+    .btn-outline:hover { background: var(--primary-l); }
+
+    /* ── DIVIDER ── */
+    .divider { border: none; border-top: 1.5px solid #F0EEF9; margin: 24px 0; }
+
+    /* ── RESULTS ── */
+    .result-hero {
+      text-align: center;
+      padding: 24px 0 16px;
+    }
+    .result-icon { font-size: 72px; margin-bottom: 12px; }
+    .result-title { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+    .result-desc { font-size: 0.95rem; color: var(--muted); line-height: 1.7; max-width: 420px; margin: 0 auto 24px; }
+
+    .result-card {
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .result-card.blue { background: var(--primary-l); }
+    .result-card.green { background: var(--accent-l); }
+    .result-card.warm  { background: var(--warm-l); }
+    .result-card h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+    .result-card.blue h3 { color: var(--primary); }
+    .result-card.green h3 { color: var(--accent); }
+    .result-card.warm h3  { color: #c48a20; }
+    .result-card p { font-size: 0.93rem; line-height: 1.6; color: var(--text); }
+
+    .score-bar-wrap { margin-top: 8px; }
+    .score-bar-bg { background: rgba(255,255,255,0.6); border-radius: 8px; height: 10px; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 8px; transition: width 1s ease; }
+    .score-bar-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+
+    .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .tag {
+      font-size: 0.78rem;
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .tag.blue { background: var(--primary); color: #fff; }
+    .tag.green { background: var(--accent); color: #fff; }
+    .tag.warm { background: var(--warm); color: #fff; }
+
+    /* ── THERAPIST NOTE ── */
+    .therapist-note {
+      background: #F9F8FF;
+      border-left: 4px solid var(--primary);
+      border-radius: 0 12px 12px 0;
+      padding: 14px 16px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 20px;
+      line-height: 1.6;
+    }
+    .therapist-note strong { color: var(--primary); }
+
+    /* ── FADE ANIM ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .screen.active { animation: fadeUp 0.35s ease; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 500px) {
+      .screen { padding: 28px 20px 24px; }
+      h1 { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+
+  <!-- ══════════════════════════════════════
+       PANTALLA 0 — BIENVENIDA
+  ══════════════════════════════════════ -->
+  <div class="screen active" id="s0">
+    <div class="welcome-emoji">👋</div>
+    <h1>¡Hola, Oscar!</h1>
+    <p class="subtitle">
+      Este pequeño check-in nos ayuda a elegir la mejor actividad para hoy
+      y a saber cómo te estás sintiendo.<br><br>
+      Solo toma <strong>3–4 minutos</strong>. Responde con honestidad,
+      no hay respuestas incorrectas.
+    </p>
+    <button class="btn btn-primary" onclick="go(1)">Comenzar ✨</button>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       PANTALLA 1 — ESTADO EMOCIONAL (Parte A)
+  ══════════════════════════════════════ -->
+  <div class="screen" id="s1">
+    <span class="section-label">Parte 1 — Cómo me siento hoy</span>
+
+    <!-- Q1 -->
+    <div class="question-block">
+      <p class="question-text">1. En general, ¿cómo estás hoy?
+        <span class="q-sub">Elige el que más se parezca a tu estado de ánimo ahora mismo</span>
+      </p>
+      <div class="emoji-scale" id="q1">
+        <div class="emoji-opt" onclick="selectEmoji('q1',this,1)">
+          <span class="em">😔</span><span class="em-label">Muy mal</span>
+        </div>
+        <div class="emoji-opt" onclick="selectEmoji('q1',this,2)">
+          <span class="em">😟</span><span class="em-label">Mal</span>
+        </div>
+        <div class="emoji-opt" onclick="selectEmoji('q1',this,3)">
+          <span class="em">😐</span><span class="em-label">Regular</span>
+        </div>
+        <div class="emoji-opt" onclick="selectEmoji('q1',this,4)">
+          <span class="em">🙂</span><span class="em-label">Bien</span>
+        </div>
+        <div class="emoji-opt" onclick="selectEmoji('q1',this,5)">
+          <span class="em">😄</span><span class="em-label">Muy bien</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="question-block">
+      <p class="question-text">2. ¿Cómo dormiste anoche?</p>
+      <div class="options" id="q2">
+        <div class="opt" onclick="selectOpt('q2',this,3)">Bien 😴</div>
+        <div class="opt" onclick="selectOpt('q2',this,2)">Regular</div>
+        <div class="opt" onclick="selectOpt('q2',this,1)">Mal</div>
+        <div class="opt" onclick="selectOpt('q2',this,0)">Casi no dormí</div>
+      </div>
+    </div>
+
+    <!-- Q3 slider ansiedad -->
+    <div class="question-block">
+      <p class="question-text">3. ¿Cuánta ansiedad sientes <em>ahora mismo</em>?
+        <span class="q-sub">0 = nada, 10 = muchísima</span>
+      </p>
+      <div class="slider-wrap">
+        <div class="slider-labels"><span>0 — Nada</span><span>10 — Muchísima</span></div>
+        <input type="range" min="0" max="10" value="5" id="q3" oninput="updateSlider('q3','q3val')">
+        <div class="slider-value" id="q3val">5</div>
+      </div>
+    </div>
+
+    <!-- Q4 energía -->
+    <div class="question-block">
+      <p class="question-text">4. ¿Cuánta energía tienes hoy?</p>
+      <div class="options" id="q4">
+        <div class="opt" onclick="selectOpt('q4',this,0)">Sin energía 🪫</div>
+        <div class="opt" onclick="selectOpt('q4',this,1)">Poca</div>
+        <div class="opt" onclick="selectOpt('q4',this,2)">Moderada</div>
+        <div class="opt" onclick="selectOpt('q4',this,3)">Bastante energía ⚡</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btn1" onclick="go(2)" disabled>Continuar →</button>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       PANTALLA 2 — ANSIEDAD SOCIAL
+  ══════════════════════════════════════ -->
+  <div class="screen" id="s2">
+    <span class="section-label accent">Parte 2 — Ansiedad social</span>
+
+    <!-- Q5 evitación -->
+    <div class="question-block">
+      <p class="question-text">5. En los últimos días, ¿evitaste alguna situación social porque te daba miedo?</p>
+      <div class="options" id="q5">
+        <div class="opt accent" onclick="selectOpt('q5',this,0)">No, ninguna vez</div>
+        <div class="opt accent" onclick="selectOpt('q5',this,1)">Sí, una vez</div>
+        <div class="opt accent" onclick="selectOpt('q5',this,2)">Sí, varias veces</div>
+        <div class="opt accent" onclick="selectOpt('q5',this,3)">Sí, casi siempre</div>
+      </div>
+    </div>
+
+    <!-- Q6 síntomas físicos -->
+    <div class="question-block">
+      <p class="question-text">6. Cuando piensas en estar con otras personas, ¿sientes alguno de estos síntomas físicos?
+        <span class="q-sub">Puedes seleccionar varios</span>
+      </p>
+      <div class="options" id="q6">
+        <div class="opt multi" onclick="toggleMulti(this)">Corazón acelerado 💓</div>
+        <div class="opt multi" onclick="toggleMulti(this)">Sudoración</div>
+        <div class="opt multi" onclick="toggleMulti(this)">Tensión muscular</div>
+        <div class="opt multi" onclick="toggleMulti(this)">Mente en blanco</div>
+        <div class="opt multi" onclick="toggleMulti(this)">Náuseas</div>
+        <div class="opt multi" onclick="toggleMulti(this)">Ninguno</div>
+      </div>
+    </div>
+
+    <!-- Q7 disposición exposición -->
+    <div class="question-block">
+      <p class="question-text">7. Hoy, ¿cómo te sientes de practicar una situación social (aunque dé un poco de miedo)?</p>
+      <div class="options" id="q7">
+        <div class="opt accent" onclick="selectOpt('q7',this,0)">No estoy listo hoy 🙅</div>
+        <div class="opt accent" onclick="selectOpt('q7',this,1)">Tal vez, con apoyo</div>
+        <div class="opt accent" onclick="selectOpt('q7',this,2)">Sí, me animo 💪</div>
+        <div class="opt accent" onclick="selectOpt('q7',this,3)">Muy motivado, quiero hacerlo 🔥</div>
+      </div>
+    </div>
+
+    <!-- Q8 preferencia -->
+    <div class="question-block">
+      <p class="question-text">8. ¿Qué preferirías hacer hoy?</p>
+      <div class="options" id="q8">
+        <div class="opt accent" onclick="selectOpt('q8',this,'exp')">Hacer un ejercicio de práctica social 🤝</div>
+        <div class="opt accent" onclick="selectOpt('q8',this,'app')">Trabajar en algo con el celular/computadora 📱</div>
+        <div class="opt accent" onclick="selectOpt('q8',this,'any')">Me da igual, lo que tú veas mejor</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btn2" onclick="go(3)" disabled>Ver resultado →</button>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       PANTALLA 3 — RESULTADOS
+  ══════════════════════════════════════ -->
+  <div class="screen" id="s3">
+    <div class="result-hero">
+      <div class="result-icon" id="res-icon">🎯</div>
+      <div class="result-title" id="res-title">Título</div>
+      <p class="result-desc" id="res-desc">Descripción</p>
+    </div>
+
+    <div class="result-card blue">
+      <h3>Estado emocional hoy</h3>
+      <div class="score-bar-wrap">
+        <div class="score-bar-label">
+          <span id="mood-label">Ánimo</span>
+          <span id="mood-score">—</span>
+        </div>
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" id="mood-bar" style="background:var(--primary);width:0%"></div>
+        </div>
+      </div>
+      <div class="tag-list" id="mood-tags"></div>
+    </div>
+
+    <div class="result-card green">
+      <h3>Ansiedad social</h3>
+      <div class="score-bar-wrap">
+        <div class="score-bar-label">
+          <span>Nivel de ansiedad actual</span>
+          <span id="anx-score">—</span>
+        </div>
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" id="anx-bar" style="background:var(--accent);width:0%"></div>
+        </div>
+      </div>
+      <p id="anx-text" style="margin-top:10px;font-size:0.9rem;color:var(--muted)"></p>
+    </div>
+
+    <div class="result-card warm">
+      <h3>Sugerencia para hoy</h3>
+      <p id="suggest-text"></p>
+    </div>
+
+    <div class="therapist-note" id="therapist-note">
+      <strong>Nota para el terapeuta:</strong> <span id="therapist-text"></span>
+    </div>
+
+    <hr class="divider">
+    <button class="btn btn-outline" onclick="restart()">Volver al inicio 🔄</button>
+  </div>
+</div>
+
+<script>
+  /* ══ STATE ══ */
+  const state = {
+    q1: null,  // ánimo (1-5)
+    q2: null,  // sueño (0-3)
+    q3: 5,     // ansiedad slider (0-10)
+    q4: null,  // energía (0-3)
+    q5: null,  // evitación (0-3)
+    q6: [],    // síntomas físicos (multi)
+    q7: null,  // disposición exposición (0-3)
+    q8: null,  // preferencia ('exp','app','any')
+  };
+
+  /* ══ NAVIGATION ══ */
+  function go(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('s' + n).classList.add('active');
+    const total = 3;
+    document.getElementById('progress-fill').style.width = (n / total * 100) + '%';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (n === 3) buildResults();
+  }
+
+  function restart() {
+    Object.keys(state).forEach(k => { state[k] = k === 'q6' ? [] : (k === 'q3' ? 5 : null); });
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+    document.querySelectorAll('.emoji-opt').forEach(o => o.classList.remove('selected'));
+    document.getElementById('q3').value = 5;
+    document.getElementById('q3val').textContent = '5';
+    document.getElementById('btn1').disabled = true;
+    document.getElementById('btn2').disabled = true;
+    go(0);
+  }
+
+  /* ══ INPUT HANDLERS ══ */
+  function selectOpt(qid, el, val) {
+    document.querySelectorAll('#' + qid + ' .opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    state[qid] = val;
+    checkPage();
+  }
+
+  function selectEmoji(qid, el, val) {
+    document.querySelectorAll('#' + qid + ' .emoji-opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    state[qid] = val;
+    checkPage();
+  }
+
+  function toggleMulti(el) {
+    el.classList.toggle('selected');
+    // no blocks navigation
+  }
+
+  function updateSlider(id, valId) {
+    const v = document.getElementById(id).value;
+    document.getElementById(valId).textContent = v;
+    state[id] = parseInt(v);
+  }
+
+  function checkPage() {
+    const p1ok = state.q1 !== null && state.q2 !== null && state.q4 !== null;
+    document.getElementById('btn1').disabled = !p1ok;
+    const p2ok = state.q5 !== null && state.q7 !== null && state.q8 !== null;
+    document.getElementById('btn2').disabled = !p2ok;
+  }
+
+  /* ══ SCORING & RESULTS ══ */
+  function buildResults() {
+    // ── Mood score (0–100)
+    const moodScore = Math.round(
+      ((state.q1 - 1) / 4 * 50) +
+      (state.q2       / 3 * 25) +
+      (state.q4       / 3 * 25)
+    );
+
+    // ── Anxiety score (0–100, higher = more anxious)
+    const anxScore = Math.round(
+      (state.q3 / 10 * 50) +
+      (state.q5 / 3  * 30) +
+      ((3 - state.q7) / 3 * 20)
+    );
+
+    // ── Decision logic
+    // More anxious + less ready → app today
+    // Ready + moderate mood → exposure session
+    const expScore = (state.q7 * 25) + ((3 - state.q5) * 8) + (state.q1 * 5) + (state.q4 * 5);
+    const appScore = ((3 - state.q7) * 20) + (state.q5 * 10) + (10 - state.q3) * 3;
+    const prefBoost = state.q8 === 'exp' ? 30 : state.q8 === 'app' ? 30 : 0;
+    const finalExp = expScore + (state.q8 === 'exp' ? prefBoost : 0);
+    const finalApp = appScore + (state.q8 === 'app' ? prefBoost : 0);
+
+    const doExposure = finalExp >= finalApp;
+
+    // ── UI
+    const icon  = document.getElementById('res-icon');
+    const title = document.getElementById('res-title');
+    const desc  = document.getElementById('res-desc');
+
+    if (doExposure) {
+      icon.textContent  = '🤝';
+      title.textContent = '¡Hoy es buen día para practicar!';
+      desc.textContent  = 'Tu estado de ánimo y disposición sugieren que puedes intentar un ejercicio de exposición social hoy. ¡Eso es mucho valor! 💪';
+    } else {
+      icon.textContent  = '📱';
+      title.textContent = 'Hoy trabajamos en la app';
+      desc.textContent  = 'Tu nivel de ansiedad o energía indica que hoy es mejor empezar por algo más tranquilo. La app será un avance igual de valioso.';
+    }
+
+    // Mood bar
+    document.getElementById('mood-bar').style.width   = moodScore + '%';
+    document.getElementById('mood-score').textContent = moodScore + '/100';
+    const moodLabel = moodScore >= 70 ? 'Ánimo alto 😄' : moodScore >= 45 ? 'Ánimo moderado 🙂' : 'Ánimo bajo 😔';
+    document.getElementById('mood-label').textContent = moodLabel;
+
+    const moodTags = [];
+    if (state.q2 >= 2) moodTags.push({ text: 'Buen descanso', cls: 'blue' });
+    else if (state.q2 <= 1) moodTags.push({ text: 'Poco sueño', cls: 'warm' });
+    if (state.q4 >= 2) moodTags.push({ text: 'Energía ⚡', cls: 'blue' });
+    else moodTags.push({ text: 'Energía baja 🪫', cls: 'warm' });
+    const tagWrap = document.getElementById('mood-tags');
+    tagWrap.innerHTML = moodTags.map(t => `<span class="tag ${t.cls}">${t.text}</span>`).join('');
+
+    // Anxiety bar
+    document.getElementById('anx-bar').style.width   = anxScore + '%';
+    document.getElementById('anx-score').textContent = anxScore + '/100';
+    let anxText = '';
+    if (anxScore <= 30) anxText = 'Ansiedad baja hoy. Buena señal para enfrentar pequeños retos.';
+    else if (anxScore <= 60) anxText = 'Ansiedad moderada. Se puede trabajar con apoyo y estrategias de regulación.';
+    else anxText = 'Ansiedad elevada hoy. Es importante cuidarte y avanzar a tu propio ritmo.';
+    document.getElementById('anx-text').textContent = anxText;
+
+    // Suggestion
+    let sugText = '';
+    if (doExposure) {
+      if (state.q7 >= 2) {
+        sugText = 'Propón un ejercicio de exposición gradual: saludar a alguien nuevo, hacer una pregunta en voz alta, o iniciar una conversación breve. Elige el nivel de dificultad que sientas retador pero manejable.';
+      } else {
+        sugText = 'Comienza con un ejercicio suave de exposición imaginaria o roleplay con el terapeuta antes de pasar a una situación real. Recordá respirar.';
+      }
+    } else {
+      sugText = 'Sesión de trabajo en la app de Oscar. Ideal para establecer objetivos, registrar avances o aprender sobre las estrategias de manejo de ansiedad sin presión social directa.';
+    }
+    document.getElementById('suggest-text').textContent = sugText;
+
+    // Therapist note
+    const avoidStr = ['nunca', 'una vez', 'varias veces', 'casi siempre'][state.q5] || '—';
+    const readyStr = ['no listo', 'con apoyo', 'animado', 'muy motivado'][state.q7] || '—';
+    document.getElementById('therapist-text').textContent =
+      `Ánimo: ${moodScore}/100. Ansiedad declarada: ${state.q3}/10. Evitación esta semana: ${avoidStr}. Disposición para exposición: ${readyStr}. Preferencia de Oscar: ${state.q8 === 'exp' ? 'práctica social' : state.q8 === 'app' ? 'app' : 'indistinta'}. Decisión automática: ${doExposure ? 'EXPOSICIÓN' : 'APP'}.`;
+
+    // Animate bars
+    setTimeout(() => {
+      document.getElementById('mood-bar').style.width = moodScore + '%';
+      document.getElementById('anx-bar').style.width  = anxScore + '%';
+    }, 100);
+  }
+</script>
+</body>
+</html>

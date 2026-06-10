@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exposure Tracker & Community</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg: #f3f4f6; --surface: #ffffff; --text: #1f2937; --text-muted: #6b7280; 
+            --accent: #4f46e5; --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
+            --border: #e5e7eb; --glass: rgba(255, 255, 255, 0.8);
+        }
+        [data-theme="dark"] {
+            --bg: #111827; --surface: #1f2937; --text: #f9fafb; --text-muted: #9ca3af;
+            --accent: #6366f1; --border: #374151; --glass: rgba(31, 41, 55, 0.8);
+        }
+        [data-theme="forest"] {
+            --bg: #064e3b; --surface: #065f46; --text: #ecfdf5; --text-muted: #a7f3d0;
+            --accent: #10b981; --border: #047857; --glass: rgba(6, 95, 70, 0.8);
+        }
+        [data-theme="midnight"] {
+            --bg: #0f0b29; --surface: #1e1548; --text: #f3e8ff; --text-muted: #c4b5fd;
+            --accent: #a855f7; --border: #3b2875; --glass: rgba(30, 21, 72, 0.8);
+        }
+        [data-theme="cyberpunk"] {
+            --bg: #000000; --surface: #120428; --text: #00ffcc; --text-muted: #ff007f;
+            --accent: #00ffcc; --danger: #ff007f; --success: #ccff00; --border: #ff007f; --glass: rgba(18, 4, 40, 0.8);
+        }
+        [data-theme="sunset"] {
+            --bg: #4a154b; --surface: #2d0a31; --text: #ffe4e6; --text-muted: #fca5a5;
+            --accent: #f43f5e; --warning: #fcd34d; --border: #831843; --glass: rgba(45, 10, 49, 0.8);
+        }
+        [data-theme="lavender"] {
+            --bg: #f3e8ff; --surface: #ffffff; --text: #4c1d95; --text-muted: #7c3aed;
+            --accent: #8b5cf6; --border: #ddd6fe; --glass: rgba(255, 255, 255, 0.8);
+        }
+        [data-theme="ocean"] {
+            --bg: #083344; --surface: #164e63; --text: #cffafe; --text-muted: #67e8f9;
+            --accent: #06b6d4; --border: #0891b2; --glass: rgba(22, 78, 99, 0.8);
+        }
+
+        body { margin: 0; font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); transition: all 0.4s ease; }
+        * { box-sizing: border-box; }
+        
+        .card { 
+            background: var(--surface); border: 1px solid var(--border); border-radius: 20px; 
+            padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); 
+            transition: transform 0.2s;
+        }
+        .input { 
+            width: 100%; padding: 14px 18px; margin: 8px 0 16px 0; border: 1px solid var(--border); 
+            border-radius: 12px; background: var(--bg); color: var(--text); outline: none; 
+            font-size: 15px; transition: border-color 0.2s; font-family: inherit;
+        }
+        .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent), 0.2); }
+        
+        .btn { 
+            padding: 12px 24px; border-radius: 12px; border: none; font-weight: bold; font-size: 15px;
+            cursor: pointer; background: var(--accent); color: white; transition: 0.2s; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); filter: brightness(1.1); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .app-header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 20px 0 20px;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        .app-title { margin: 0 0 15px 0; color: var(--accent); font-size: 1.5rem; text-align: center; }
+        .nav-tabs {
+            display: flex; gap: 8px; overflow-x: auto; padding-bottom: 15px;
+            scrollbar-width: none; -ms-overflow-style: none;  
+        }
+        .nav-tabs::-webkit-scrollbar { display: none; }
+        
+        .nav-btn { 
+            background: var(--bg); color: var(--text-muted); border: 1px solid transparent; font-weight: 600; 
+            padding: 10px 18px; cursor: pointer; font-size: 14px; border-radius: 20px; transition: all 0.2s;
+            white-space: nowrap; display: flex; align-items: center; gap: 6px;
+        }
+        .nav-btn:hover { color: var(--text); border-color: var(--border); }
+        .nav-btn.active { color: white; background: var(--accent); box-shadow: 0 4px 10px rgba(var(--accent), 0.3); }
+        
+        .notification-badge {
+            background: var(--danger); color: white; border-radius: 50%;
+            padding: 2px 6px; font-size: 11px; font-weight: bold; min-width: 20px; text-align: center;
+        }
+        .typing-indicator {
+            font-size: 12px; color: var(--text-muted); font-style: italic; 
+            height: 16px; margin-top: 5px; opacity: 0.8;
+        }
+        .timer-display { font-size: 3rem; font-weight: 800; text-align: center; margin: 15px 0; font-variant-numeric: tabular-nums; color: var(--accent); text-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+        input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; margin: 10px 0; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; background: var(--bg); border-radius: 4px; border: 1px solid var(--border); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%; background: var(--accent); margin-top: -9px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .quick-fill-btn {
+            background: var(--bg); color: var(--text-muted); border: 1px solid var(--border);
+            padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold;
+            cursor: pointer; transition: 0.2s;
+        }
+        .quick-fill-btn:hover { background: var(--border); color: var(--text); }
+        .chat-box::-webkit-scrollbar { width: 6px; }
+        .chat-box::-webkit-scrollbar-track { background: transparent; }
+        .chat-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+        /* Daily Check-in styles */
+        .checkin-btn {
+            width: 100%; padding: 18px 16px; margin-bottom: 14px;
+            border-radius: 18px; border: 2px solid var(--border);
+            background: var(--bg); color: var(--text);
+            font-size: 15px; font-weight: 600; text-align: left;
+            cursor: pointer; display: flex; align-items: center; gap: 16px;
+            transition: border-color 0.2s, background 0.2s, transform 0.1s;
+            font-family: inherit;
+        }
+        .checkin-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+        .checkin-btn.selected { border-color: var(--accent); background: var(--surface); }
+        .checkin-btn .ci-icon { font-size: 32px; flex-shrink: 0; }
+        .checkin-btn .ci-label { font-size: 13px; color: var(--text-muted); margin-top: 3px; font-weight: 400; }
+        .checkin-next {
+            width: 100%; padding: 15px; border-radius: 14px; border: none;
+            background: var(--accent); color: white; font-size: 16px; font-weight: bold;
+            cursor: pointer; margin-top: 10px; opacity: 0.35; pointer-events: none;
+            transition: opacity 0.2s; font-family: inherit;
+        }
+        .checkin-next.ready { opacity: 1; pointer-events: all; }
+        .checkin-next.ready:hover { filter: brightness(1.1); }
+        .checkin-dots { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
+        .checkin-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: background 0.2s, transform 0.2s; }
+        .checkin-dot.active { background: var(--accent); transform: scale(1.2); }
+        .battery-outer { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .battery-body { flex: 1; height: 30px; border: 2px solid var(--border); border-radius: 6px; overflow: hidden; }
+        .battery-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease, background 0.5s ease; }
+        .battery-tip { width: 8px; height: 16px; background: var(--border); border-radius: 0 4px 4px 0; flex-shrink: 0; }
+        .summary-row { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--bg); border-radius: 14px; margin-bottom: 12px; }
+        .summary-icon { font-size: 28px; }
+        .summary-lbl { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+        .summary-val { font-size: 15px; font-weight: bold; color: var(--text); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseBadge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+
+        .card { transition: transform 0.2s, box-shadow 0.2s; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 16px 32px -5px rgba(0,0,0,0.13); }
+        .notification-badge { animation: pulseBadge 2s infinite; }
+        .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+        [data-theme="forest"] .input:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+        [data-theme="midnight"] .input:focus { box-shadow: 0 0 0 3px rgba(168,85,247,0.2); }
+        [data-theme="ocean"] .input:focus { box-shadow: 0 0 0 3px rgba(6,182,212,0.2); }
+
+        .theme-swatch-btn {
+            padding: 14px 8px; border-radius: 14px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 7px;
+            transition: transform 0.15s, border-color 0.15s;
+            border: 2px solid var(--border); background: var(--bg);
+        }
+        .theme-swatch-btn:hover { transform: translateY(-2px); }
+        .theme-swatch-btn.active { border-color: var(--accent); transform: scale(1.06); }
+        .theme-dot { width: 30px; height: 30px; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+        .theme-name { font-size: 11px; font-weight: 700; text-transform: capitalize; color: var(--text-muted); }
+        .theme-swatch-btn.active .theme-name { color: var(--accent); }
+
+        .login-hero {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border-radius: 20px 20px 0 0; padding: 36px 24px 28px;
+            text-align: center; position: relative; overflow: hidden;
+        }
+        .login-hero::before {
+            content: ''; position: absolute; inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .login-app-icon {
+            width: 72px; height: 72px; border-radius: 20px;
+            background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 36px; margin: 0 auto 16px; position: relative; z-index: 1;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        .login-hero h1 { color: white; font-size: 1.8rem; margin: 0 0 6px; position: relative; z-index: 1; }
+        .login-hero p { color: rgba(255,255,255,0.8); margin: 0; font-size: 0.9rem; position: relative; z-index: 1; }
+        .login-body { padding: 28px 28px 24px; }
+        .login-card-wrap { background: var(--surface); border-radius: 20px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const DIFFICULTY_LEVELS = ["0 - Very Easy", "1 - Easy", "2 - Easy-Medium", "3 - Medium", "4 - Medium-Hard", "5 - Hard", "6 - Very Hard", "7 - Extremely Hard"];
+        const THEME_OPTIONS = ["light", "dark", "forest", "midnight", "cyberpunk", "sunset", "lavender", "ocean"];
+
+        const SUPABASE_URL = "https://fgjqobwcarbtsakeyyqj.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnanFvYndjYXJidHNha2V5eXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODI5NDQsImV4cCI6MjA5NjA1ODk0NH0.dUtEcbav-R0w4D6SbHfU_JeePuiCitoOzRRgDPFbtqk";
+
+        function App() {
+            const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
+            const [supabase] = useState(() => window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
+            const [user, setUser] = useState(null);
+            const [activeTab, setActiveTab] = useState("dashboard");
+
+            useEffect(() => {
+                document.body.setAttribute("data-theme", theme);
+                localStorage.setItem("theme", theme);
+            }, [theme]);
+
+            useEffect(() => {
+                supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
+                supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+            }, []);
+
+            if (!user) {
+                return (
+                    <div style={{minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", background: "var(--bg)"}}>
+                        <div style={{maxWidth: "420px", width: "100%"}}>
+                            <div className="login-card-wrap">
+                                <div className="login-hero">
+                                    <div className="login-app-icon">🧠</div>
+                                    <h1>Exposure Tracker</h1>
+                                    <p>Master your anxiety, one step at a time.</p>
+                                </div>
+                                <div className="login-body">
+                                    <h2 style={{marginTop: 0, marginBottom: "4px"}}>Welcome Back</h2>
+                                    <p style={{fontSize: "13px", color: "var(--text-muted)", marginBottom: "20px", marginTop: 0}}>Sign in to continue your progress.</p>
+                                    <label style={{fontSize: "12px", fontWeight: "bold", color: "var(--text-muted)", letterSpacing: "0.05em"}}>EMAIL</label>
+                                    <input className="input" id="email" type="email" placeholder="you@email.com" />
+                                    <label style={{fontSize: "12px", fontWeight: "bold", color: "var(--text-muted)", letterSpacing: "0.05em"}}>PASSWORD</label>
+                                    <input className="input" id="password" type="password" placeholder="••••••••" />
+                                    <div className="grid-2" style={{marginTop: "10px"}}>
+                                        <button className="btn" onClick={async () => {
+                                            const {error} = await supabase.auth.signInWithPassword({ email: document.getElementById('email').value, password: document.getElementById('password').value });
+                                            if(error) alert(error.message);
+                                        }}>Login</button>
+                                        <button className="btn" style={{background: "var(--bg)", color: "var(--text)", border: "1px solid var(--border)", boxShadow: "none"}} onClick={async () => {
+                                            const {error} = await supabase.auth.signUp({ email: document.getElementById('email').value, password: document.getElementById('password').value });
+                                            if(error) alert(error.message); else alert("Registration successful! You can now log in.");
+                                        }}>Register</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return <MainApp supabase={supabase} user={user} theme={theme} setTheme={setTheme} activeTab={activeTab} setActiveTab={setActiveTab} />;
+        }
+
+        function MainApp({ supabase, user, theme, setTheme, activeTab, setActiveTab }) {
+            const [exposures, setExposures] = useState([]);
+            const [avoidances, setAvoidances] = useState([]);
+            const [schedule, setSchedule] = useState([]);
+            const [messages, setMessages] = useState([]);
+            const [unreadCount, setUnreadCount] = useState(0);
+            const [typingUsers, setTypingUsers] = useState({});
+            const chatChannelRef = useRef(null);
+            const activeTabRef = useRef(activeTab);
+
+            useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
+            const loadData = async () => {
+                const [exp, avo, sch, msgs] = await Promise.all([
+                    supabase.from('exposures').select('*').order('created_at', { ascending: false }),
+                    supabase.from('avoidances').select('*').order('created_at', { ascending: false }),
+                    supabase.from('schedule').select('*').order('time_start', { ascending: true }),
+                    supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(100)
+                ]);
+                if(exp.data) setExposures(exp.data);
+                if(avo.data) setAvoidances(avo.data);
+                if(sch.data) setSchedule(sch.data);
+                if(msgs.data) setMessages(msgs.data);
+            };
+
+            useEffect(() => { 
+                loadData(); 
+                const channel = supabase.channel('realtime:community');
+                channel
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+                        setMessages(prev => [...prev, payload.new]);
+                        if (activeTabRef.current !== 'chat' && payload.new.user_id !== user.id) {
+                            setUnreadCount(prev => prev + 1);
+                        }
+                    })
+                    .on('broadcast', { event: 'typing' }, (payload) => {
+                        if (payload.payload.user !== user.email.split('@')[0]) {
+                            setTypingUsers(prev => ({...prev, [payload.payload.user]: Date.now()}));
+                        }
+                    })
+                    .subscribe();
+                chatChannelRef.current = channel;
+                const typingInterval = setInterval(() => {
+                    const now = Date.now();
+                    setTypingUsers(prev => {
+                        let changed = false;
+                        const next = { ...prev };
+                        for (const u in next) {
+                            if (now - next[u] > 3000) { delete next[u]; changed = true; }
+                        }
+                        return changed ? next : prev;
+                    });
+                }, 1000);
+                return () => { supabase.removeChannel(channel); clearInterval(typingInterval); };
+            }, []);
+
+            const deleteRecord = async (table, id) => {
+                if(confirm("Are you sure you want to delete this record?")) {
+                    await supabase.from(table).delete().eq('id', id);
+                    loadData();
+                }
+            };
+
+            const editAvoidance = async (av) => {
+                const newSit = prompt("Edit situation avoided:", av.situation);
+                if (newSit === null) return; 
+                const newThought = prompt("Edit automatic thought:", av.thought || "");
+                if (newThought === null) return;
+                const newReason = prompt("Edit reason / behavior:", av.reason || "");
+                if (newReason === null) return;
+                const newRef = prompt("Edit your explanation (Why did you avoid?):", av.reflection || "");
+                if (newRef === null) return;
+                await supabase.from('avoidances').update({ 
+                    situation: newSit, thought: newThought, reason: newReason, reflection: newRef
+                }).eq('id', av.id);
+                loadData();
+            };
+
+            // --- DAILY CHECK-IN ---
+            const DailyCheckIn = () => {
+                const [screen, setScreen] = useState(1);
+                const [picks, setPicks] = useState({});
+                const [battPct, setBattPct] = useState(0);
+                const [battColor, setBattColor] = useState('#10b981');
+                const [done, setDone] = useState(false);
+                const [saving, setSaving] = useState(false);
+                const [history, setHistory] = useState([]);
+
+                const summaryLabels = {
+                    full: "Full battery", half: "Half battery", low: "Low battery",
+                    voice: "I want to talk", listen: "Listening only", silence: "Silence please",
+                    home: "Stay home", easy: "Easy outing", challenge: "Challenge mode", decide: "You decide"
+                };
+                const summaryIcons = {
+                    full:"🟢", half:"🟡", low:"🔴",
+                    voice:"🗣️", listen:"🎧", silence:"🚫",
+                    home:"🏠", easy:"🚶", challenge:"🚀", decide:"🎲"
+                };
+                const screenLabels = { 1: "Energy", 2: "Communication", 3: "Plan" };
+
+                const loadHistory = async () => {
+                    const { data } = await supabase
+                        .from('daily_checkins')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: false })
+                        .limit(5);
+                    if (data) setHistory(data);
+                };
+
+                useEffect(() => { loadHistory(); }, []);
+
+                const screenTitles = {
+                    1: "How much energy do you have today?",
+                    2: "How do you want to communicate right now?",
+                    3: "What are we doing with today's plan?"
+                };
+                const screenSubs = {
+                    1: "Tap the one that feels right",
+                    2: "There are no wrong answers",
+                    3: "Pick what feels best"
+                };
+
+                const options = {
+                    1: [
+                        { val: "full", icon: "🟢", label: "Full battery", sub: "I'm ready for anything today", batt: 100, color: '#10b981' },
+                        { val: "half", icon: "🟡", label: "Half battery", sub: "I'm okay, but I want to take it easy", batt: 50, color: '#f59e0b' },
+                        { val: "low",  icon: "🔴", label: "Low battery",  sub: "I have no energy, I need to rest", batt: 15, color: '#ef4444' },
+                    ],
+                    2: [
+                        { val: "voice",   icon: "🗣️", label: "I want to talk",       sub: "Talk to me and I'll talk back" },
+                        { val: "listen",  icon: "🎧", label: "Listening only",        sub: "You can talk to me, I won't use my voice" },
+                        { val: "silence", icon: "🚫", label: "Silence please",        sub: "Please don't talk to me right now" },
+                    ],
+                    3: [
+                        { val: "home",      icon: "🏠", label: "Stay home",           sub: "I don't want to go out today" },
+                        { val: "easy",      icon: "🚶", label: "Easy outing",          sub: "A place I already know, no surprises" },
+                        { val: "challenge", icon: "🚀", label: "Challenge mode",       sub: "I have energy to try something new" },
+                        { val: "decide",    icon: "🎲", label: "You decide for me",    sub: "I don't know — please choose for me" },
+                    ]
+                };
+
+                const select = (opt) => {
+                    setPicks(prev => ({ ...prev, [screen]: opt.val }));
+                    if (screen === 1) { setBattPct(opt.batt); setBattColor(opt.color); }
+                };
+
+                const next = async () => {
+                    if (screen < 3) {
+                        setScreen(screen + 1);
+                    } else {
+                        setSaving(true);
+                        const { error } = await supabase.from('daily_checkins').insert([{
+                            user_id: user.id,
+                            energy: picks[1],
+                            communication: picks[2],
+                            plan: picks[3]
+                        }]);
+                        setSaving(false);
+                        if (error) {
+                            alert("Error saving: " + error.message);
+                        } else {
+                            setDone(true);
+                            loadHistory();
+                        }
+                    }
+                };
+
+                const reset = () => {
+                    setScreen(1); setPicks({}); setBattPct(0); setBattColor('#10b981'); setDone(false);
+                };
+
+                const formatDate = (iso) => {
+                    const d = new Date(iso);
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                };
+
+                if (done) {
+                    return (
+                        <div>
+                            <div className="card">
+                                <h2 style={{color: "var(--success)", marginTop: 0}}>Saved! ✅</h2>
+                                <p style={{color: "var(--text-muted)", fontSize: "14px", marginBottom: "20px"}}>Today's check-in has been saved.</p>
+                                {[1,2,3].map(s => picks[s] && (
+                                    <div key={s} className="summary-row">
+                                        <span className="summary-icon">{summaryIcons[picks[s]]}</span>
+                                        <div>
+                                            <div className="summary-lbl">{screenLabels[s]}</div>
+                                            <div className="summary-val">{summaryLabels[picks[s]]}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                                <button className="btn" style={{width: "100%", marginTop: "14px", background: "var(--accent)"}} onClick={reset}>
+                                    New Check-in
+                                </button>
+                            </div>
+
+                            {history.length > 0 && (
+                                <div className="card">
+                                    <h3 style={{marginTop: 0, color: "var(--accent)"}}>Recent Check-ins</h3>
+                                    {history.map(h => (
+                                        <div key={h.id} style={{padding: "12px", background: "var(--bg)", borderRadius: "12px", marginBottom: "10px"}}>
+                                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px"}}>
+                                                <span style={{fontSize: "12px", color: "var(--text-muted)"}}>{formatDate(h.created_at)}</span>
+                                                <button onClick={async () => { if(confirm("Delete this check-in?")) { await supabase.from('daily_checkins').delete().eq('id', h.id); loadHistory(); }}} style={{background:"transparent", border:"none", color:"var(--danger)", cursor:"pointer", fontSize:"16px", padding:"0"}}>🗑️</button>
+                                            </div>
+                                            <div style={{display: "flex", gap: "10px", flexWrap: "wrap"}}>
+                                                <span style={{fontSize: "13px"}}>{summaryIcons[h.energy]} {summaryLabels[h.energy]}</span>
+                                                <span style={{fontSize: "13px", color: "var(--text-muted)"}}>·</span>
+                                                <span style={{fontSize: "13px"}}>{summaryIcons[h.communication]} {summaryLabels[h.communication]}</span>
+                                                <span style={{fontSize: "13px", color: "var(--text-muted)"}}>·</span>
+                                                <span style={{fontSize: "13px"}}>{summaryIcons[h.plan]} {summaryLabels[h.plan]}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+
+                return (
+                    <div>
+                        <div className="card">
+                            <div className="checkin-dots">
+                                {[1,2,3].map(n => (
+                                    <div key={n} className={`checkin-dot ${screen === n ? 'active' : ''}`}></div>
+                                ))}
+                            </div>
+
+                            <h2 style={{color: "var(--accent)", marginTop: 0, marginBottom: "6px"}}>{screenTitles[screen]}</h2>
+                            <p style={{color: "var(--text-muted)", fontSize: "14px", marginTop: 0, marginBottom: "20px"}}>{screenSubs[screen]}</p>
+
+                            {screen === 1 && (
+                                <div className="battery-outer">
+                                    <div className="battery-body">
+                                        <div className="battery-fill" style={{width: battPct + '%', background: battColor}}></div>
+                                    </div>
+                                    <div className="battery-tip"></div>
+                                </div>
+                            )}
+
+                            {options[screen].map(opt => (
+                                <button
+                                    key={opt.val}
+                                    className={`checkin-btn ${picks[screen] === opt.val ? 'selected' : ''}`}
+                                    style={picks[screen] === opt.val ? {borderColor: "var(--accent)"} : {}}
+                                    onClick={() => select(opt)}
+                                >
+                                    <span className="ci-icon">{opt.icon}</span>
+                                    <div>
+                                        <div>{opt.label}</div>
+                                        <div className="ci-label">{opt.sub}</div>
+                                    </div>
+                                </button>
+                            ))}
+
+                            <button
+                                className={`checkin-next ${picks[screen] && !saving ? 'ready' : ''}`}
+                                onClick={next}
+                                disabled={saving}
+                            >
+                                {saving ? 'Saving...' : screen === 3 ? 'Save ✓' : 'Next →'}
+                            </button>
+                        </div>
+
+                        {history.length > 0 && (
+                            <div className="card">
+                                <h3 style={{marginTop: 0, color: "var(--accent)"}}>Recent Check-ins</h3>
+                                {history.map(h => (
+                                    <div key={h.id} style={{padding: "12px", background: "var(--bg)", borderRadius: "12px", marginBottom: "10px"}}>
+                                        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px"}}>
+                                            <span style={{fontSize: "12px", color: "var(--text-muted)"}}>{formatDate(h.created_at)}</span>
+                                            <button onClick={async () => { if(confirm("Delete this check-in?")) { await supabase.from('daily_checkins').delete().eq('id', h.id); loadHistory(); }}} style={{background:"transparent", border:"none", color:"var(--danger)", cursor:"pointer", fontSize:"16px", padding:"0"}}>🗑️</button>
+                                        </div>
+                                        <div style={{display: "flex", gap: "10px", flexWrap: "wrap"}}>
+                                            <span style={{fontSize: "13px"}}>{summaryIcons[h.energy]} {summaryLabels[h.energy]}</span>
+                                            <span style={{fontSize: "13px", color: "var(--text-muted)"}}>·</span>
+                                            <span style={{fontSize: "13px"}}>{summaryIcons[h.communication]} {summaryLabels[h.communication]}</span>
+                                            <span style={{fontSize: "13px", color: "var(--text-muted)"}}>·</span>
+                                            <span style={{fontSize: "13px"}}>{summaryIcons[h.plan]} {summaryLabels[h.plan]}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            // --- DASHBOARD ---
+            const Dashboard = () => {
+                const exposureXP = exposures.length * 100;
+                const avoidancePenalty = avoidances.length * 100;
+                const reflectionBonus = avoidances.filter(a => a.reflection && a.reflection.trim().length > 0).length * 25; 
+                let totalXP = exposureXP - avoidancePenalty + reflectionBonus;
+                if (totalXP < 0) totalXP = 0;
+                const level = Math.floor(totalXP / 500) + 1;
+                const currentLevelXP = totalXP % 500;
+                const nextLevelXP = 500;
+                const progressPct = (currentLevelXP / nextLevelXP) * 100;
+                const getRankName = (lvl) => {
+                    if (lvl === 1) return "Novice Explorer";
+                    if (lvl === 2) return "Courage Initiate";
+                    if (lvl === 3) return "Comfort Zone Expander";
+                    if (lvl === 4) return "Fear Challenger";
+                    if (lvl >= 5) return "Anxiety Master";
+                    return "Warrior";
+                };
+                const shortAnswerCount = avoidances.filter(av => {
+                    const t = (av.thought || "").trim().toLowerCase();
+                    const r = (av.reason || "").trim().toLowerCase();
+                    return t === "no" || t === "i don't know" || r === "no" || r === "i don't know";
+                }).length;
+                const structuredAnswerCount = avoidances.length - shortAnswerCount;
+
+                return (
+                    <div>
+                        <div className="card" style={{ background: "linear-gradient(135deg, var(--accent), #8b5cf6)", color: "white", border: "none", position: "relative", overflow: "hidden" }}>
+                            <div style={{ position: "absolute", top: "-50px", right: "-50px", width: "150px", height: "150px", background: "rgba(255,255,255,0.1)", borderRadius: "50%" }}></div>
+                            <div className="flex-between" style={{ marginBottom: "15px", position: "relative", zIndex: 1 }}>
+                                <div>
+                                    <span style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", opacity: 0.9, fontWeight: "bold" }}>Current Rank</span>
+                                    <h2 style={{ margin: 0, fontSize: "1.8rem" }}>Level {level}: {getRankName(level)}</h2>
+                                </div>
+                                <div style={{ textAlign: "right" }}>
+                                    <h2 style={{ margin: 0, color: "#fcd34d", textShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>{totalXP} XP</h2>
+                                    <span style={{ fontSize: "12px", opacity: 0.9 }}>Total Experience</span>
+                                </div>
+                            </div>
+                            <div style={{ position: "relative", zIndex: 1 }}>
+                                <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: "10px", height: "12px", width: "100%", overflow: "hidden" }}>
+                                    <div style={{ background: "#10b981", height: "100%", width: `${progressPct}%`, transition: "width 1s ease-in-out", borderRadius: "10px" }}></div>
+                                </div>
+                                <p style={{ margin: "8px 0 0 0", fontSize: "12px", opacity: 0.9, textAlign: "right" }}>{nextLevelXP - currentLevelXP} XP to Level {level + 1}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid-2" style={{marginBottom: "24px"}}>
+                            <div className="card" style={{textAlign: "center", padding: "20px"}}>
+                                <h1 style={{color: "var(--success)", fontSize: "2.5rem", margin: 0}}>{exposures.length}</h1>
+                                <p style={{margin: "5px 0 0 0", color: "var(--text-muted)", fontWeight: "bold"}}>Wins</p>
+                            </div>
+                            <div className="card" style={{textAlign: "center", padding: "20px"}}>
+                                <h1 style={{color: "var(--danger)", fontSize: "2.5rem", margin: 0}}>{avoidances.length}</h1>
+                                <p style={{margin: "5px 0 0 0", color: "var(--text-muted)", fontWeight: "bold"}}>Avoidances</p>
+                            </div>
+                        </div>
+
+                        <div className="card" style={{borderLeft: "5px solid var(--danger)"}}>
+                            <h3 style={{marginTop: 0, color: "var(--accent)"}}>Avoidance Patterns</h3>
+                            <p style={{fontSize: "14px", color: "var(--text-muted)", marginBottom: "15px"}}>How often are you using "No" or "I don't know" to shut down a situation?</p>
+                            <div style={{display: "flex", gap: "15px", marginBottom: "10px"}}>
+                                <div style={{flex: 1, background: "rgba(239, 68, 68, 0.1)", padding: "15px", borderRadius: "12px", border: "1px solid var(--danger)", textAlign: "center"}}>
+                                    <h2 style={{margin: "0 0 5px 0", color: "var(--danger)", fontSize: "2rem"}}>{shortAnswerCount}</h2>
+                                    <div style={{fontSize: "12px", fontWeight: "bold", color: "var(--danger)"}}>Automatic "No" / "I don't know"</div>
+                                </div>
+                                <div style={{flex: 1, background: "rgba(16, 185, 129, 0.1)", padding: "15px", borderRadius: "12px", border: "1px solid var(--success)", textAlign: "center"}}>
+                                    <h2 style={{margin: "0 0 5px 0", color: "var(--success)", fontSize: "2rem"}}>{structuredAnswerCount}</h2>
+                                    <div style={{fontSize: "12px", fontWeight: "bold", color: "var(--success)"}}>Detailed Explanations</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 style={{color: "var(--accent)", marginTop: "30px"}}>Recent Exposures</h3>
+                        {exposures.length === 0 ? <p style={{color: "var(--text-muted)"}}>No exposure sessions logged yet.</p> : exposures.slice(0,3).map(e => (
+                            <div key={e.id} className="card flex-between" style={{padding: "20px", borderLeft: "5px solid var(--success)", marginBottom: "15px"}}>
+                                <div style={{width: "100%"}}>
+                                    <div className="flex-between">
+                                        <strong style={{fontSize: "1.1rem"}}>{e.situation}</strong>
+                                        <button onClick={() => deleteRecord('exposures', e.id)} style={{background:"transparent", border:"none", color:"var(--danger)", cursor:"pointer"}}>🗑️</button>
+                                    </div>
+                                    <div style={{display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap"}}>
+                                        <span className="badge" style={{background: "rgba(239, 68, 68, 0.2)", color: "var(--danger)"}}>Before: {e.before_level}</span>
+                                        <span className="badge" style={{background: "rgba(16, 185, 129, 0.2)", color: "var(--success)"}}>After: {e.after_level}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        <h3 style={{color: "var(--danger)", marginTop: "30px"}}>Recent Avoidances</h3>
+                        {avoidances.length === 0 ? <p style={{color: "var(--text-muted)"}}>No avoidances logged. Great job!</p> : avoidances.slice(0,3).map(av => (
+                            <div key={av.id} className="card flex-between" style={{padding: "20px", borderLeft: "5px solid var(--danger)", marginBottom: "15px"}}>
+                                <div style={{width: "100%"}}>
+                                    <div className="flex-between">
+                                        <strong style={{fontSize: "1.1rem"}}>{av.situation}</strong>
+                                        <div>
+                                            <button onClick={() => editAvoidance(av)} style={{background:"transparent", border:"none", color:"var(--accent)", cursor:"pointer", marginRight: "10px"}}>✏️</button>
+                                            <button onClick={() => deleteRecord('avoidances', av.id)} style={{background:"transparent", border:"none", color:"var(--danger)", cursor:"pointer"}}>🗑️</button>
+                                        </div>
+                                    </div>
+                                    <div style={{fontSize: "13px", color: "var(--text-muted)", marginTop: "10px"}}>
+                                        <p style={{margin: "4px 0"}}><strong>Answer:</strong> {av.thought}</p>
+                                        <p style={{margin: "4px 0"}}><strong>Behavior:</strong> {av.reason}</p>
+                                    </div>
+                                    {av.reflection && (
+                                        <div style={{marginTop: "10px", padding: "10px", background: "var(--bg)", borderRadius: "8px", borderLeft: "3px solid var(--accent)"}}>
+                                            <p style={{fontSize: "12px", margin: 0, color: "var(--text)"}}><strong>Why:</strong> {av.reflection}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                );
+            };
+
+            // --- LOG EXPOSURE ---
+            const LogExposure = () => {
+                const [time, setTime] = useState(0);
+                const [timerRunning, setTimerRunning] = useState(false);
+                const [before, setBefore] = useState(50);
+                const [during, setDuring] = useState(50);
+                const [after, setAfter] = useState(30);
+                const timerRef = useRef(null);
+
+                useEffect(() => {
+                    if (timerRunning) timerRef.current = setInterval(() => setTime(t => t + 1), 1000);
+                    else clearInterval(timerRef.current);
+                    return () => clearInterval(timerRef.current);
+                }, [timerRunning]);
+
+                const save = async () => {
+                    const sit = document.getElementById('exp-sit').value;
+                    if(!sit) return alert("Please enter a situation.");
+                    await supabase.from('exposures').insert([{
+                        user_id: user.id, situation: sit, before_level: before, during_level: during,
+                        after_level: after, difficulty: document.getElementById('exp-diff').value,
+                        duration_minutes: Math.floor(time / 60)
+                    }]);
+                    alert("Exposure Win Saved! +100 XP 🎉"); loadData(); setActiveTab("dashboard");
+                };
+
+                return (
+                    <div className="card">
+                        <h2 style={{color: "var(--success)", marginTop: 0}}>Log Exposure Win</h2>
+                        <div style={{background: "var(--bg)", padding: "20px", borderRadius: "16px", marginBottom: "20px"}}>
+                            <div className="timer-display">⏱️ {`${Math.floor(time/60).toString().padStart(2,'0')}:${(time%60).toString().padStart(2,'0')}`}</div>
+                            <div style={{display: "flex", gap: "10px", justifyContent: "center"}}>
+                                <button className="btn" onClick={() => setTimerRunning(!timerRunning)}>{timerRunning ? "Pause Timer" : "Start Session"}</button>
+                                <button className="btn" style={{background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)"}} onClick={() => {setTimerRunning(false); setTime(0);}}>Reset</button>
+                            </div>
+                        </div>
+                        <label style={{fontWeight: "bold", fontSize: "14px"}}>Situation / Challenge</label>
+                        <input className="input" id="exp-sit" placeholder="e.g., Asked a question in class" />
+                        <div style={{background: "var(--bg)", padding: "15px", borderRadius: "12px", marginBottom: "15px"}}>
+                            <label style={{fontWeight: "bold", fontSize: "14px"}}>Anxiety BEFORE: <span style={{color: "var(--danger)"}}>{before}</span>/100</label>
+                            <input type="range" min="0" max="100" value={before} onChange={(e) => setBefore(e.target.value)} />
+                        </div>
+                        <div style={{background: "var(--bg)", padding: "15px", borderRadius: "12px", marginBottom: "15px"}}>
+                            <label style={{fontWeight: "bold", fontSize: "14px"}}>Anxiety DURING: <span style={{color: "var(--warning)"}}>{during}</span>/100</label>
+                            <input type="range" min="0" max="100" value={during} onChange={(e) => setDuring(e.target.value)} />
+                        </div>
+                        <div style={{background: "var(--bg)", padding: "15px", borderRadius: "12px", marginBottom: "15px"}}>
+                            <label style={{fontWeight: "bold", fontSize: "14px"}}>Anxiety AFTER: <span style={{color: "var(--success)"}}>{after}</span>/100</label>
+                            <input type="range" min="0" max="100" value={after} onChange={(e) => setAfter(e.target.value)} />
+                        </div>
+                        <label style={{fontWeight: "bold", fontSize: "14px"}}>Difficulty Category</label>
+                        <select className="input" id="exp-diff">
+                            {DIFFICULTY_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                        <button className="btn" style={{width: "100%", background: "var(--success)", marginTop: "10px"}} onClick={save}>✅ Save Session (+100 XP)</button>
+                    </div>
+                );
+            };
+
+            // --- AVOIDANCE ---
+            const LogAvoidance = () => {
+                const fillInput = (id, text) => { document.getElementById(id).value = text; };
+                const save = async () => {
+                    const sit = document.getElementById('av-sit').value;
+                    const ref = document.getElementById('av-ref').value;
+                    if(!sit) return alert("Please enter the situation.");
+                    await supabase.from('avoidances').insert([{
+                        user_id: user.id, situation: sit,
+                        thought: document.getElementById('av-tho').value,
+                        reason: document.getElementById('av-rea').value,
+                        reflection: ref
+                    }]);
+                    if (ref.trim().length > 0) {
+                        alert("Avoidance Logged (-100 XP). But you earned +25 XP back for reflecting! 💪"); 
+                    } else {
+                        alert("Avoidance Logged (-100 XP)."); 
+                    }
+                    loadData(); setActiveTab("dashboard");
+                };
+
+                return (
+                    <div className="card" style={{borderTop: "5px solid var(--danger)"}}>
+                        <h2 style={{color: "var(--danger)", marginTop: 0}}>Log Avoidance</h2>
+                        <label style={{fontWeight: "bold", fontSize: "14px"}}>What did you avoid?</label>
+                        <input className="input" id="av-sit" placeholder="e.g., Cancelled meeting with friends" />
+                        <div className="flex-between" style={{marginBottom: "5px"}}>
+                            <label style={{fontWeight: "bold", fontSize: "14px"}}>Automatic Answer / Thought</label>
+                            <div style={{display: "flex", gap: "5px"}}>
+                                <button className="quick-fill-btn" onClick={() => fillInput('av-tho', "I don't know")}>I don't know</button>
+                                <button className="quick-fill-btn" onClick={() => fillInput('av-tho', "No")}>No</button>
+                            </div>
+                        </div>
+                        <textarea className="input" id="av-tho" rows="2" placeholder="What did you say or think?"></textarea>
+                        <div className="flex-between" style={{marginBottom: "5px"}}>
+                            <label style={{fontWeight: "bold", fontSize: "14px"}}>Behavior / Action taken</label>
+                            <div style={{display: "flex", gap: "5px"}}>
+                                <button className="quick-fill-btn" onClick={() => fillInput('av-rea', "I don't know")}>I don't know</button>
+                                <button className="quick-fill-btn" onClick={() => fillInput('av-rea', "No")}>No</button>
+                            </div>
+                        </div>
+                        <textarea className="input" id="av-rea" rows="2" placeholder="e.g., I walked away, I changed the subject"></textarea>
+                        <div style={{background: "var(--bg)", padding: "15px", borderRadius: "12px", marginTop: "10px", borderLeft: "4px solid var(--accent)"}}>
+                            <label style={{fontWeight: "bold", fontSize: "14px", color: "var(--accent)"}}>Explanation / Reflection (Regain 25 XP)</label>
+                            <p style={{fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 8px 0"}}>Why did you avoid this or use "No/I don't know"? What were you protecting yourself from?</p>
+                            <textarea className="input" id="av-ref" rows="3" placeholder="e.g., I felt pressured to give a perfect answer and panicked..." style={{margin: 0}}></textarea>
+                        </div>
+                        <button className="btn" style={{width: "100%", background: "var(--danger)", marginTop: "20px"}} onClick={save}>Log Avoidance (-100 XP)</button>
+                    </div>
+                );
+            };
+
+            // --- SCHEDULE ---
+            const Schedule = () => {
+                const add = async () => {
+                    const task = document.getElementById('sch-task').value;
+                    if(!task) return alert("Please enter a task.");
+                    await supabase.from('schedule').insert([{
+                        user_id: user.id, task: task,
+                        time_start: document.getElementById('sch-time-start').value,
+                        time_end: document.getElementById('sch-time-end').value
+                    }]);
+                    loadData();
+                };
+                return (
+                    <div className="card">
+                        <h2 style={{color: "var(--accent)", margin: "0 0 15px 0"}}>Schedule</h2>
+                        <input className="input" id="sch-task" placeholder="Task / Challenge" />
+                        <div style={{display: "flex", gap: "15px", marginBottom: "15px"}}>
+                            <div style={{flex: 1}}><label style={{fontSize: "12px"}}>FROM</label><input className="input" type="time" id="sch-time-start" /></div>
+                            <div style={{flex: 1}}><label style={{fontSize: "12px"}}>TO</label><input className="input" type="time" id="sch-time-end" /></div>
+                        </div>
+                        <button className="btn" style={{width: "100%"}} onClick={add}>Add to Schedule</button>
+                        <div style={{marginTop: "20px"}}>
+                            {schedule.map(s => (
+                                <div key={s.id} className="flex-between" style={{padding: "15px", background: "var(--bg)", borderRadius: "12px", marginBottom: "10px"}}>
+                                    <div style={{display: "flex", gap: "15px", alignItems: "center"}}>
+                                        <input type="checkbox" checked={s.is_done} onChange={async () => { await supabase.from('schedule').update({is_done: !s.is_done}).eq('id', s.id); loadData(); }} style={{width: "20px", height: "20px"}} />
+                                        <div style={{textDecoration: s.is_done ? "line-through" : "none"}}>
+                                            <strong>{s.task}</strong>
+                                            <div style={{fontSize: "12px", color: "var(--text-muted)"}}>{s.time_start} - {s.time_end}</div>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => deleteRecord('schedule', s.id)} style={{background:"transparent", border:"none", color:"var(--danger)", cursor:"pointer"}}>🗑️</button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            };
+
+            // --- LEARNING ---
+            const Learning = () => {
+                const [time, setTime] = useState(0);
+                const [running, setRunning] = useState(false);
+                const [phase, setPhase] = useState("Ready");
+                const timerRef = useRef(null);
+
+                useEffect(() => {
+                    if(running) {
+                        timerRef.current = setInterval(() => {
+                            setTime(t => {
+                                const newT = t + 1;
+                                const cycle = newT % 16;
+                                if(cycle < 4) setPhase("Inhale...");
+                                else if(cycle < 11) setPhase("Hold...");
+                                else setPhase("Exhale...");
+                                return newT;
+                            });
+                        }, 1000);
+                    } else clearInterval(timerRef.current);
+                    return () => clearInterval(timerRef.current);
+                }, [running]);
+
+                return (
+                    <div className="card" style={{textAlign: "center"}}>
+                        <h2 style={{color: "var(--accent)", marginTop: 0}}>4-7-8 Breathing Tool</h2>
+                        <div style={{
+                            width: "200px", height: "200px", borderRadius: "50%", background: "var(--surface)", border: "8px solid var(--accent)", 
+                            margin: "30px auto", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", fontWeight: "bold", 
+                            transform: phase === "Inhale..." ? "scale(1.2)" : (phase === "Exhale..." ? "scale(0.85)" : "scale(1)"), transition: "all 1s ease-in-out"
+                        }}>{phase}</div>
+                        <p style={{fontSize: "1.2rem", fontWeight: "bold", color: "var(--text-muted)"}}>Time: {Math.floor(time/60)}:{(time%60).toString().padStart(2,'0')}</p>
+                        <button className="btn" onClick={() => setRunning(!running)}>{running ? "Pause" : "Start"}</button>
+                    </div>
+                );
+            };
+
+            // --- CHAT ---
+            const Chat = () => {
+                const [newMessage, setNewMessage] = useState("");
+                const messagesEndRef = useRef(null);
+
+                useEffect(() => {
+                    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                }, [messages, typingUsers]);
+
+                const handleTyping = (e) => {
+                    setNewMessage(e.target.value);
+                    if (chatChannelRef.current) {
+                        chatChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { user: user.email.split('@')[0] } });
+                    }
+                };
+
+                const sendMessage = async (e) => {
+                    e.preventDefault();
+                    if (!newMessage.trim()) return;
+                    const payload = { user_id: user.id, email: user.email.split('@')[0], content: newMessage.trim() };
+                    setNewMessage(""); 
+                    await supabase.from('messages').insert([payload]);
+                };
+
+                const activeTypers = Object.keys(typingUsers);
+                let typingIndicatorText = "";
+                if (activeTypers.length === 1) typingIndicatorText = `${activeTypers[0]} is typing...`;
+                else if (activeTypers.length > 1) typingIndicatorText = "Several people are typing...";
+
+                return (
+                    <div className="card" style={{display: "flex", flexDirection: "column", height: "70vh", padding: "20px"}}>
+                        <h2 style={{marginTop: 0, color: "var(--accent)"}}>Community Chat 🌍</h2>
+                        <p style={{fontSize: "13px", color: "var(--text-muted)", marginTop: "-10px", marginBottom: "15px"}}>Connect, support, and share wins with others.</p>
+                        <div className="chat-box" style={{flex: 1, overflowY: "auto", padding: "15px", background: "var(--bg)", borderRadius: "12px", display: "flex", flexDirection: "column", gap: "10px", marginBottom: "15px"}}>
+                            {messages.length === 0 ? <p style={{textAlign: "center", color: "var(--text-muted)", marginTop: "20px"}}>No messages yet. Be the first to say hi!</p> : messages.map((m, index) => {
+                                const isMe = m.user_id === user.id;
+                                const showName = !isMe && (index === 0 || messages[index - 1].user_id !== m.user_id);
+                                return (
+                                    <div key={m.id} style={{alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "80%", display: "flex", flexDirection: "column"}}>
+                                        {showName && <span style={{fontSize: "11px", fontWeight: "bold", color: "var(--text-muted)", marginBottom: "4px", marginLeft: "4px"}}>{m.email}</span>}
+                                        <div style={{
+                                            background: isMe ? "var(--accent)" : "var(--surface)", color: isMe ? "white" : "var(--text)", 
+                                            padding: "10px 14px", borderRadius: "16px", borderBottomRightRadius: isMe ? "4px" : "16px", 
+                                            borderBottomLeftRadius: isMe ? "16px" : "4px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", 
+                                            border: isMe ? "none" : "1px solid var(--border)", fontSize: "14px", lineHeight: "1.4"
+                                        }}>{m.content}</div>
+                                    </div>
+                                );
+                            })}
+                            <div className="typing-indicator">{typingIndicatorText}</div>
+                            <div ref={messagesEndRef} />
+                        </div>
+                        <form onSubmit={sendMessage} style={{display: "flex", gap: "10px", margin: 0}}>
+                            <input className="input" style={{margin: 0, flex: 1, borderRadius: "20px"}} value={newMessage} onChange={handleTyping} placeholder="Type a message..." autoComplete="off" />
+                            <button type="submit" className="btn" style={{borderRadius: "20px", padding: "12px 20px"}} disabled={!newMessage.trim()}>Send</button>
+                        </form>
+                    </div>
+                );
+            };
+
+            // --- SETTINGS ---
+            const Settings = () => {
+                const THEME_META = {
+                    light:     { dot: '#4f46e5', bg: '#f3f4f6', label: 'Light' },
+                    dark:      { dot: '#6366f1', bg: '#111827', label: 'Dark' },
+                    forest:    { dot: '#10b981', bg: '#064e3b', label: 'Forest' },
+                    midnight:  { dot: '#a855f7', bg: '#0f0b29', label: 'Midnight' },
+                    cyberpunk: { dot: '#00ffcc', bg: '#000000', label: 'Cyber' },
+                    sunset:    { dot: '#f43f5e', bg: '#4a154b', label: 'Sunset' },
+                    lavender:  { dot: '#8b5cf6', bg: '#f3e8ff', label: 'Lavender' },
+                    ocean:     { dot: '#06b6d4', bg: '#083344', label: 'Ocean' },
+                };
+                return (
+                    <div className="card">
+                        <h2 style={{marginTop: 0, color: "var(--accent)"}}>⚙️ Settings</h2>
+                        <label style={{fontWeight: "bold", fontSize: "14px", display: "block", marginBottom: "14px"}}>App Theme</label>
+                        <div style={{display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "8px"}}>
+                            {THEME_OPTIONS.map(t => (
+                                <button key={t} className={`theme-swatch-btn ${theme === t ? 'active' : ''}`} onClick={() => setTheme(t)}>
+                                    <div className="theme-dot" style={{background: THEME_META[t].dot, border: `3px solid ${THEME_META[t].bg}`, outline: `2px solid ${THEME_META[t].dot}`}}></div>
+                                    <span className="theme-name">{THEME_META[t].label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <hr style={{border: "none", borderTop: "1px solid var(--border)", margin: "30px 0"}} />
+                        <h3 style={{color: "var(--danger)", marginTop: 0}}>Account & Data</h3>
+                        <p style={{fontSize: "13px", color: "var(--text-muted)"}}>Logged in as: <strong>{user.email}</strong></p>
+                        <div style={{display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px"}}>
+                            <button className="btn" style={{background: "var(--surface)", color: "var(--danger)", border: "1px solid var(--danger)"}} onClick={async () => { await supabase.auth.signOut(); }}>🚪 Log Out</button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // --- MAIN RENDER ---
+            return (
+                <div>
+                    <div className="app-header">
+                        <h2 className="app-title">Exposure Tracker</h2>
+                        <div className="nav-tabs">
+                            <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
+                            <button className={`nav-btn ${activeTab === 'checkin' ? 'active' : ''}`} onClick={() => setActiveTab('checkin')}>🔋 Check-in</button>
+                            <button className={`nav-btn ${activeTab === 'exposure' ? 'active' : ''}`} onClick={() => setActiveTab('exposure')}>✅ Win (+)</button>
+                            <button className={`nav-btn ${activeTab === 'avoidance' ? 'active' : ''}`} onClick={() => setActiveTab('avoidance')}>⚠️ Avoid (-)</button>
+                            <button className={`nav-btn ${activeTab === 'schedule' ? 'active' : ''}`} onClick={() => setActiveTab('schedule')}>📅 Schedule</button>
+                            <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => {setActiveTab('chat'); setUnreadCount(0);}}>
+                                💬 Chat
+                                {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+                            </button>
+                            <button className={`nav-btn ${activeTab === 'learning' ? 'active' : ''}`} onClick={() => setActiveTab('learning')}>🧘 Tools</button>
+                            <button className={`nav-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>⚙️ Settings</button>
+                        </div>
+                    </div>
+
+                    <div style={{maxWidth: "900px", margin: "0 auto", padding: "24px 20px"}}>
+                        <div style={{animation: "fadeIn 0.3s ease-in-out"}}>
+                            {activeTab === 'dashboard' && <Dashboard />}
+                            {activeTab === 'checkin' && <DailyCheckIn />}
+                            {activeTab === 'exposure' && <LogExposure />}
+                            {activeTab === 'avoidance' && <LogAvoidance />}
+                            {activeTab === 'schedule' && <Schedule />}
+                            {activeTab === 'chat' && <Chat />}
+                            {activeTab === 'learning' && <Learning />}
+                            {activeTab === 'settings' && <Settings />}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
